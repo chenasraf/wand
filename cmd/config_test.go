@@ -268,6 +268,97 @@ main:
 	}
 }
 
+func TestGetConfirmMessage_Bool(t *testing.T) {
+	cmd := Command{Confirm: true}
+	msg, ok := cmd.GetConfirmMessage()
+	if !ok || msg != "Are you sure?" {
+		t.Errorf("GetConfirmMessage() = (%q, %v), want (\"Are you sure?\", true)", msg, ok)
+	}
+}
+
+func TestGetConfirmMessage_String(t *testing.T) {
+	cmd := Command{Confirm: "Delete everything?"}
+	msg, ok := cmd.GetConfirmMessage()
+	if !ok || msg != "Delete everything?" {
+		t.Errorf("GetConfirmMessage() = (%q, %v)", msg, ok)
+	}
+}
+
+func TestGetConfirmMessage_False(t *testing.T) {
+	cmd := Command{Confirm: false}
+	_, ok := cmd.GetConfirmMessage()
+	if ok {
+		t.Error("expected false for confirm: false")
+	}
+}
+
+func TestGetConfirmMessage_Nil(t *testing.T) {
+	cmd := Command{}
+	_, ok := cmd.GetConfirmMessage()
+	if ok {
+		t.Error("expected false for nil confirm")
+	}
+}
+
+func TestGetConfirmDefault_Yes(t *testing.T) {
+	cmd := Command{ConfirmDefault: "yes"}
+	if !cmd.GetConfirmDefault() {
+		t.Error("expected true for confirm_default: yes")
+	}
+}
+
+func TestGetConfirmDefault_No(t *testing.T) {
+	cmd := Command{ConfirmDefault: "no"}
+	if cmd.GetConfirmDefault() {
+		t.Error("expected false for confirm_default: no")
+	}
+}
+
+func TestGetConfirmDefault_Empty(t *testing.T) {
+	cmd := Command{}
+	if cmd.GetConfirmDefault() {
+		t.Error("expected false for empty confirm_default")
+	}
+}
+
+func TestLoadConfig_WithConfirm(t *testing.T) {
+	setupTestConfig(t, `
+deploy:
+  description: deploy
+  cmd: echo deploying
+  confirm: "Deploy to production?"
+`)
+
+	_, commands, err := loadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg, ok := commands["deploy"].GetConfirmMessage()
+	if !ok || msg != "Deploy to production?" {
+		t.Errorf("confirm = (%q, %v)", msg, ok)
+	}
+}
+
+func TestLoadConfig_WithConfirmBool(t *testing.T) {
+	setupTestConfig(t, `
+deploy:
+  description: deploy
+  cmd: echo deploying
+  confirm: true
+`)
+
+	_, commands, err := loadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg, ok := commands["deploy"].GetConfirmMessage()
+	if !ok || msg != "Are you sure?" {
+		t.Errorf("confirm = (%q, %v)", msg, ok)
+	}
+}
+
 func TestLoadConfig_WithAliases(t *testing.T) {
 	setupTestConfig(t, `
 build:

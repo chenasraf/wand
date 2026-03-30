@@ -230,6 +230,141 @@ func TestRunShellCmd_WorkingDir(t *testing.T) {
 	}
 }
 
+func TestRunShellCmd_ConfirmYes(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	origReader := stdinReader
+	stdinReader = strings.NewReader("y\n")
+	defer func() { stdinReader = origReader }()
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{Cmd: "echo confirmed", Confirm: true})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "confirmed" {
+		t.Errorf("output = %q, want confirmed", got)
+	}
+}
+
+func TestRunShellCmd_ConfirmNo(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	origReader := stdinReader
+	stdinReader = strings.NewReader("n\n")
+	defer func() { stdinReader = origReader }()
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{Cmd: "echo should-not-run", Confirm: true})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "" {
+		t.Errorf("output = %q, want empty (command should not run)", got)
+	}
+}
+
+func TestRunShellCmd_ConfirmCustomMessage(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	origReader := stdinReader
+	stdinReader = strings.NewReader("yes\n")
+	defer func() { stdinReader = origReader }()
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{Cmd: "echo done", Confirm: "Really do it?"})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "done" {
+		t.Errorf("output = %q, want done", got)
+	}
+}
+
+func TestRunShellCmd_ConfirmDefaultYes_EmptyInput(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	origReader := stdinReader
+	stdinReader = strings.NewReader("\n")
+	defer func() { stdinReader = origReader }()
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{Cmd: "echo ran", Confirm: true, ConfirmDefault: "yes"})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "ran" {
+		t.Errorf("output = %q, want ran (default yes should run on empty input)", got)
+	}
+}
+
+func TestRunShellCmd_ConfirmDefaultNo_EmptyInput(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	origReader := stdinReader
+	stdinReader = strings.NewReader("\n")
+	defer func() { stdinReader = origReader }()
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{Cmd: "echo should-not-run", Confirm: true})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "" {
+		t.Errorf("output = %q, want empty (default no should skip on empty input)", got)
+	}
+}
+
 func TestRunShellCmd_InvalidShell(t *testing.T) {
 	cfg := &Config{Shell: "/nonexistent/shell"}
 

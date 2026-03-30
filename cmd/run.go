@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -10,8 +12,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// stdinReader is the reader used for confirm prompts (overridable in tests).
+var stdinReader io.Reader = os.Stdin
+
 func runShellCmd(cfg *Config, command Command) func(*cobra.Command, []string) error {
 	return func(c *cobra.Command, args []string) error {
+		if msg, ok := command.GetConfirmMessage(); ok {
+			if !promptConfirm(msg, command.GetConfirmDefault()) {
+				return nil
+			}
+		}
+
 		shell := cfg.GetShell()
 		cmdArgs := append([]string{"-c", command.Cmd, "_"}, args...)
 		cmd := exec.Command(shell, cmdArgs...)
@@ -24,6 +35,20 @@ func runShellCmd(cfg *Config, command Command) func(*cobra.Command, []string) er
 		}
 		return cmd.Run()
 	}
+}
+
+func promptConfirm(message string, defaultYes bool) bool {
+	hint := lo.Ternary(defaultYes, "[Y/n]", "[y/N]")
+	fmt.Fprintf(os.Stderr, "%s %s ", message, hint)
+	scanner := bufio.NewScanner(stdinReader)
+	if scanner.Scan() {
+		answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+		if answer == "" {
+			return defaultYes
+		}
+		return answer == "y" || answer == "yes"
+	}
+	return false
 }
 
 func buildEnv(cfg *Config, command Command, c *cobra.Command) []string {

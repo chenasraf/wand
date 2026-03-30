@@ -23,6 +23,7 @@ project tree.
   overrides.
 - **Working directory**: override the working directory for any command.
 - **Aliases**: define alternate names for commands.
+- **Confirmation prompts**: require `y/N` confirmation before running destructive commands.
 - **Built-in help**: auto-generated `--help` for every command and subcommand.
 - **Shell execution**: runs commands via your `$SHELL` with proper stdin/stdout/stderr passthrough.
 
@@ -128,6 +129,8 @@ Each top-level key defines a command. The special key `main` becomes the root (n
 | `env`         | `map[string]string`  | Environment variables for this command |
 | `working_dir` | `string`             | Working directory for the command      |
 | `aliases`     | `[]string`           | Alternate names for the command        |
+| `confirm`         | `bool` or `string`   | Prompt for confirmation before running     |
+| `confirm_default` | `string`             | Default answer: `"yes"` or `"no"` (default) |
 
 ### Flag fields
 
@@ -212,6 +215,35 @@ build:
 ```bash
 wand build
 # → env=production out=./dist
+```
+
+---
+
+## ⚠️ Confirmation Prompts
+
+Add `confirm: true` for a default prompt, or provide a custom message:
+
+```yaml
+deploy:
+  description: deploy to production
+  cmd: ./deploy.sh
+  confirm: "Deploy to production?"
+
+clean:
+  description: remove all build artifacts
+  cmd: rm -rf dist/
+  confirm: true
+
+restart:
+  description: restart service
+  cmd: systemctl restart myapp
+  confirm: "Restart the service?"
+  confirm_default: "yes"
+```
+
+```bash
+wand deploy
+# → Deploy to production? [y/N]
 ```
 
 ---

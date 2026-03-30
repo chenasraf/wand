@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"strings"
+
 	"github.com/samber/lo"
 	"github.com/spf13/viper"
 	"go.yaml.in/yaml/v3"
@@ -19,13 +21,34 @@ type Flag struct {
 }
 
 type Command struct {
-	Description string             `yaml:"description"`
-	Cmd         string             `yaml:"cmd"`
-	Children    map[string]Command `yaml:"children"`
-	Flags       map[string]Flag    `yaml:"flags"`
-	Env         map[string]string  `yaml:"env"`
-	WorkingDir  string             `yaml:"working_dir"`
-	Aliases     []string           `yaml:"aliases"`
+	Description    string             `yaml:"description"`
+	Cmd            string             `yaml:"cmd"`
+	Children       map[string]Command `yaml:"children"`
+	Flags          map[string]Flag    `yaml:"flags"`
+	Env            map[string]string  `yaml:"env"`
+	WorkingDir     string             `yaml:"working_dir"`
+	Aliases        []string           `yaml:"aliases"`
+	Confirm        interface{}        `yaml:"confirm"`
+	ConfirmDefault string             `yaml:"confirm_default"`
+}
+
+// GetConfirmMessage returns the confirm prompt message and whether confirmation is enabled.
+func (c Command) GetConfirmMessage() (string, bool) {
+	switch v := c.Confirm.(type) {
+	case bool:
+		if v {
+			return "Are you sure?", true
+		}
+		return "", false
+	case string:
+		return v, true
+	}
+	return "", false
+}
+
+// GetConfirmDefault returns true if the default answer is yes.
+func (c Command) GetConfirmDefault() bool {
+	return strings.EqualFold(c.ConfirmDefault, "yes") || strings.EqualFold(c.ConfirmDefault, "y")
 }
 
 type Config struct {
