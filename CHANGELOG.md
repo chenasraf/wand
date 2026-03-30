@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.0](https://github.com/chenasraf/wand/compare/v1.1.0...v1.2.0) (2026-03-30)
+
+
+### Features
+
+* add command aliases ([f6dd98a](https://github.com/chenasraf/wand/commit/f6dd98a707b35c6940cfe7189f2158eaecd56eab))
+* add confirmation prompts with configurable default ([a3ae9ef](https://github.com/chenasraf/wand/commit/a3ae9ef67b31a4c3ef73abd2547f2bf4299fbb69))
+* add environment variables support (global and per-command) ([562d732](https://github.com/chenasraf/wand/commit/562d732b3ac548de4372da2511293da321ffff8c))
+* add working_dir support for commands ([a055590](https://github.com/chenasraf/wand/commit/a0555903c55d2b0ca6ef2120b366f38dcd90cf34))
+
 ## [1.1.0](https://github.com/chenasraf/wand/compare/v1.0.0...v1.1.0) (2026-03-30)
 
 
