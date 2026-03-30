@@ -268,6 +268,25 @@ main:
 	}
 }
 
+func TestLoadConfig_WithAliases(t *testing.T) {
+	setupTestConfig(t, `
+build:
+  description: build
+  cmd: echo build
+  aliases: [b, compile]
+`)
+
+	_, commands, err := loadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	aliases := commands["build"].Aliases
+	if len(aliases) != 2 || aliases[0] != "b" || aliases[1] != "compile" {
+		t.Errorf("aliases = %v, want [b compile]", aliases)
+	}
+}
+
 func TestLoadConfig_WithWorkingDir(t *testing.T) {
 	setupTestConfig(t, `
 main:

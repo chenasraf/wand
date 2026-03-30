@@ -25,6 +25,7 @@ type Command struct {
 	Flags       map[string]Flag    `yaml:"flags"`
 	Env         map[string]string  `yaml:"env"`
 	WorkingDir  string             `yaml:"working_dir"`
+	Aliases     []string           `yaml:"aliases"`
 }
 
 type Config struct {

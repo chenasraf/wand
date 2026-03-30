@@ -250,6 +250,41 @@ greet:
 	}
 }
 
+func TestBuildCobraCommand_WithAliases(t *testing.T) {
+	cfg := &Config{}
+	cmd := Command{
+		Description: "build",
+		Cmd:         "echo build",
+		Aliases:     []string{"b", "compile"},
+	}
+
+	c := buildCobraCommand(cfg, "build", cmd)
+
+	if len(c.Aliases) != 2 {
+		t.Fatalf("expected 2 aliases, got %d", len(c.Aliases))
+	}
+	if c.Aliases[0] != "b" || c.Aliases[1] != "compile" {
+		t.Errorf("aliases = %v, want [b compile]", c.Aliases)
+	}
+}
+
+func TestExecute_WithAlias(t *testing.T) {
+	setupTestConfig(t, `
+build:
+  description: build
+  cmd: echo built
+  aliases: [b]
+`)
+
+	origArgs := setArgs("wand", "b")
+	defer restoreArgs(origArgs)
+
+	err := Execute()
+	if err != nil {
+		t.Fatalf("Execute() failed: %v", err)
+	}
+}
+
 func TestExecute_NoMain(t *testing.T) {
 	setupTestConfig(t, `
 build:

@@ -22,6 +22,7 @@ project tree.
 - **Environment variables**: define env vars globally in `.config` or per command, with command-level
   overrides.
 - **Working directory**: override the working directory for any command.
+- **Aliases**: define alternate names for commands.
 - **Built-in help**: auto-generated `--help` for every command and subcommand.
 - **Shell execution**: runs commands via your `$SHELL` with proper stdin/stdout/stderr passthrough.
 
@@ -126,6 +127,7 @@ Each top-level key defines a command. The special key `main` becomes the root (n
 | `flags`       | `map[string]Flag`    | Custom flags (see below)            |
 | `env`         | `map[string]string`  | Environment variables for this command |
 | `working_dir` | `string`             | Working directory for the command      |
+| `aliases`     | `[]string`           | Alternate names for the command        |
 
 ### Flag fields
 

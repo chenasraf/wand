@@ -39,8 +39,9 @@ func Execute() error {
 
 func buildCobraCommand(cfg *Config, name string, cmd Command) *cobra.Command {
 	c := &cobra.Command{
-		Use:   name,
-		Short: cmd.Description,
+		Use:     name,
+		Aliases: cmd.Aliases,
+		Short:   cmd.Description,
 	}
 
 	if cmd.Cmd != "" {
