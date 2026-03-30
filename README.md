@@ -19,8 +19,8 @@ project tree.
 - **Positional arguments**: pass arguments to commands and reference them with `$1`, `$2`, `$@`.
 - **Custom flags**: define typed flags (string or bool) with aliases, defaults, and descriptions,
   accessible as `$WAND_FLAG_<NAME>` environment variables.
-- **Environment variables**: define env vars globally in `.config` or per command, with command-level
-  overrides.
+- **Environment variables**: define env vars globally in `.config` or per command, with
+  command-level overrides.
 - **Working directory**: override the working directory for any command.
 - **Aliases**: define alternate names for commands.
 - **Confirmation prompts**: require `y/N` confirmation before running destructive commands.
@@ -120,16 +120,16 @@ The first config file found is used.
 
 Each top-level key defines a command. The special key `main` becomes the root (no-argument) command.
 
-| Field         | Type                 | Description                         |
-| ------------- | -------------------- | ----------------------------------- |
-| `description` | `string`             | Short description shown in `--help` |
-| `cmd`         | `string`             | Shell command to execute            |
-| `children`    | `map[string]Command` | Nested subcommands (same structure) |
-| `flags`       | `map[string]Flag`    | Custom flags (see below)            |
-| `env`         | `map[string]string`  | Environment variables for this command |
-| `working_dir` | `string`             | Working directory for the command      |
-| `aliases`     | `[]string`           | Alternate names for the command        |
-| `confirm`         | `bool` or `string`   | Prompt for confirmation before running     |
+| Field             | Type                 | Description                                 |
+| ----------------- | -------------------- | ------------------------------------------- |
+| `description`     | `string`             | Short description shown in `--help`         |
+| `cmd`             | `string`             | Shell command to execute                    |
+| `children`        | `map[string]Command` | Nested subcommands (same structure)         |
+| `flags`           | `map[string]Flag`    | Custom flags (see below)                    |
+| `env`             | `map[string]string`  | Environment variables for this command      |
+| `working_dir`     | `string`             | Working directory for the command           |
+| `aliases`         | `[]string`           | Alternate names for the command             |
+| `confirm`         | `bool` or `string`   | Prompt for confirmation before running      |
 | `confirm_default` | `string`             | Default answer: `"yes"` or `"no"` (default) |
 
 ### Flag fields
@@ -227,7 +227,7 @@ Add `confirm: true` for a default prompt, or provide a custom message:
 deploy:
   description: deploy to production
   cmd: ./deploy.sh
-  confirm: "Deploy to production?"
+  confirm: 'Deploy to production?'
 
 clean:
   description: remove all build artifacts
@@ -237,8 +237,8 @@ clean:
 restart:
   description: restart service
   cmd: systemctl restart myapp
-  confirm: "Restart the service?"
-  confirm_default: "yes"
+  confirm: 'Restart the service?'
+  confirm_default: 'yes'
 ```
 
 ```bash
