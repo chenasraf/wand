@@ -114,6 +114,18 @@ wand test --help
 
 The first config file found is used.
 
+You can override config discovery with an explicit path:
+
+```bash
+# via flag
+wand --wand-file ./other-config.yml build
+
+# via environment variable
+WAND_FILE=./other-config.yml wand build
+```
+
+The `--wand-file` flag takes precedence over `WAND_FILE`.
+
 ---
 
 ## 📖 Config Reference

@@ -87,10 +87,16 @@ type rawConfig struct {
 	Commands  map[string]Command `yaml:",inline"`
 }
 
-func loadConfig() (*Config, map[string]Command, error) {
-	configPath, err := findConfigFile()
-	if err != nil {
-		return nil, nil, err
+func loadConfig(explicitPath string) (*Config, map[string]Command, error) {
+	var configPath string
+	var err error
+	if explicitPath != "" {
+		configPath = explicitPath
+	} else {
+		configPath, err = findConfigFile()
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	data, err := os.ReadFile(configPath)

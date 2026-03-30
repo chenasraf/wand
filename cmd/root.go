@@ -1,12 +1,16 @@
 package cmd
 
 import (
+	"os"
+	"strings"
+
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
 
 func Execute() error {
-	cfg, commands, err := loadConfig()
+	configFile := resolveConfigFile()
+	cfg, commands, err := loadConfig(configFile)
 	if err != nil {
 		return err
 	}
@@ -16,6 +20,8 @@ func Execute() error {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+
+	rootCmd.PersistentFlags().String("wand-file", "", "path to wand config file (overrides discovery)")
 
 	if main, ok := commands["main"]; ok {
 		rootCmd.Short = main.Description
@@ -60,6 +66,19 @@ func buildCobraCommand(cfg *Config, name string, cmd Command) *cobra.Command {
 	)
 
 	return c
+}
+
+// resolveConfigFile extracts --wand-file from os.Args or WAND_FILE env before cobra parses.
+func resolveConfigFile() string {
+	for i, arg := range os.Args {
+		if arg == "--wand-file" && i+1 < len(os.Args) {
+			return os.Args[i+1]
+		}
+		if strings.HasPrefix(arg, "--wand-file=") {
+			return strings.TrimPrefix(arg, "--wand-file=")
+		}
+	}
+	return os.Getenv("WAND_FILE")
 }
 
 func registerFlags(c *cobra.Command, flags map[string]Flag) {

@@ -115,7 +115,7 @@ build:
   cmd: go build
 `)
 
-	cfg, commands, err := loadConfig()
+	cfg, commands, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ parent:
           cmd: echo grandchild
 `)
 
-	_, commands, err := loadConfig()
+	_, commands, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ main:
   cmd: echo test
 `)
 
-	cfg, commands, err := loadConfig()
+	cfg, commands, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ main:
   cmd: echo test
 `)
 
-	cfg, _, err := loadConfig()
+	cfg, _, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +239,7 @@ main:
   cmd: echo test
 `)
 
-	cfg, _, err := loadConfig()
+	cfg, _, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +258,7 @@ main:
     MY_VAR: hello
 `)
 
-	_, commands, err := loadConfig()
+	_, commands, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,7 +329,7 @@ deploy:
   confirm: "Deploy to production?"
 `)
 
-	_, commands, err := loadConfig()
+	_, commands, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,7 +348,7 @@ deploy:
   confirm: true
 `)
 
-	_, commands, err := loadConfig()
+	_, commands, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +367,7 @@ build:
   aliases: [b, compile]
 `)
 
-	_, commands, err := loadConfig()
+	_, commands, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,13 +386,35 @@ main:
   working_dir: /tmp
 `)
 
-	_, commands, err := loadConfig()
+	_, commands, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if commands["main"].WorkingDir != "/tmp" {
 		t.Errorf("working_dir = %q, want /tmp", commands["main"].WorkingDir)
+	}
+}
+
+func TestLoadConfig_ExplicitPath(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "custom.yml")
+	err := os.WriteFile(configPath, []byte(`
+main:
+  description: from explicit
+  cmd: echo explicit
+`), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, commands, err := loadConfig(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if commands["main"].Description != "from explicit" {
+		t.Errorf("description = %q, want 'from explicit'", commands["main"].Description)
 	}
 }
 
@@ -408,7 +430,7 @@ func TestLoadConfig_NoConfigFile(t *testing.T) {
 	// Remove HOME to prevent finding a real ~/.wand.yml
 	t.Setenv("HOME", dir)
 
-	_, _, err := loadConfig()
+	_, _, err := loadConfig("")
 	if err == nil {
 		t.Error("expected error for missing config, got nil")
 	}
@@ -434,7 +456,7 @@ main:
 		viper.Reset()
 	}()
 
-	_, commands, err := loadConfig()
+	_, commands, err := loadConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}

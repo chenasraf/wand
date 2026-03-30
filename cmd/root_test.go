@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -277,6 +279,68 @@ build:
 `)
 
 	origArgs := setArgs("wand", "b")
+	defer restoreArgs(origArgs)
+
+	err := Execute()
+	if err != nil {
+		t.Fatalf("Execute() failed: %v", err)
+	}
+}
+
+func TestResolveConfigFile_Flag(t *testing.T) {
+	origArgs := setArgs("wand", "--wand-file", "/tmp/custom.yml", "build")
+	defer restoreArgs(origArgs)
+
+	got := resolveConfigFile()
+	if got != "/tmp/custom.yml" {
+		t.Errorf("resolveConfigFile() = %q, want /tmp/custom.yml", got)
+	}
+}
+
+func TestResolveConfigFile_FlagEquals(t *testing.T) {
+	origArgs := setArgs("wand", "--wand-file=/tmp/custom.yml", "build")
+	defer restoreArgs(origArgs)
+
+	got := resolveConfigFile()
+	if got != "/tmp/custom.yml" {
+		t.Errorf("resolveConfigFile() = %q, want /tmp/custom.yml", got)
+	}
+}
+
+func TestResolveConfigFile_EnvVar(t *testing.T) {
+	origArgs := setArgs("wand", "build")
+	defer restoreArgs(origArgs)
+
+	t.Setenv("WAND_FILE", "/tmp/env.yml")
+
+	got := resolveConfigFile()
+	if got != "/tmp/env.yml" {
+		t.Errorf("resolveConfigFile() = %q, want /tmp/env.yml", got)
+	}
+}
+
+func TestResolveConfigFile_FlagOverridesEnv(t *testing.T) {
+	origArgs := setArgs("wand", "--wand-file", "/tmp/flag.yml")
+	defer restoreArgs(origArgs)
+
+	t.Setenv("WAND_FILE", "/tmp/env.yml")
+
+	got := resolveConfigFile()
+	if got != "/tmp/flag.yml" {
+		t.Errorf("resolveConfigFile() = %q, want /tmp/flag.yml (flag should override env)", got)
+	}
+}
+
+func TestExecute_WithWandFileFlag(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "custom.yml")
+	_ = os.WriteFile(configPath, []byte(`
+main:
+  description: custom
+  cmd: echo custom
+`), 0644)
+
+	origArgs := setArgs("wand", "--wand-file", configPath)
 	defer restoreArgs(origArgs)
 
 	err := Execute()
