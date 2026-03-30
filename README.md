@@ -13,9 +13,10 @@ project tree.
 ## 🚀 Features
 
 - **Simple YAML config**: define commands, descriptions, and nested subcommands in a single file.
-- **Auto-discovery**: finds `wand.yml` by searching the current directory, parent directories,
-  `~/`, and `~/.config/`.
+- **Auto-discovery**: finds `wand.yml` by searching the current directory, parent directories, `~/`,
+  and `~/.config/`.
 - **Nested subcommands**: commands can have arbitrarily deep children.
+- **Positional arguments**: pass arguments to commands and reference them with `$1`, `$2`, `$@`.
 - **Built-in help**: auto-generated `--help` for every command and subcommand.
 - **Shell execution**: runs commands via your `$SHELL` with proper stdin/stdout/stderr passthrough.
 
@@ -112,11 +113,29 @@ The first config file found is used.
 
 Each top-level key defines a command. The special key `main` becomes the root (no-argument) command.
 
-| Field         | Type              | Description                          |
-| ------------- | ----------------- | ------------------------------------ |
-| `description` | `string`          | Short description shown in `--help`  |
-| `cmd`         | `string`          | Shell command to execute             |
+| Field         | Type                 | Description                         |
+| ------------- | -------------------- | ----------------------------------- |
+| `description` | `string`             | Short description shown in `--help` |
+| `cmd`         | `string`             | Shell command to execute            |
 | `children`    | `map[string]Command` | Nested subcommands (same structure) |
+
+---
+
+## 📌 Positional Arguments
+
+Commands receive any extra arguments passed on the command line. Use `$1`, `$2`, etc. for specific
+positions, or `$@` for all arguments:
+
+```yaml
+greet:
+  description: greet someone
+  cmd: echo "Hello, $1! You said: $@"
+```
+
+```bash
+wand greet world foo bar
+# → Hello, world! You said: world foo bar
+```
 
 ---
 

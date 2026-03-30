@@ -19,6 +19,7 @@ func Execute() error {
 
 	if main, ok := commands["main"]; ok {
 		rootCmd.Short = main.Description
+		rootCmd.Args = cobra.ArbitraryArgs
 		rootCmd.RunE = runShellCmd(cfg, main.Cmd)
 	}
 
@@ -42,6 +43,7 @@ func buildCobraCommand(cfg *Config, name string, cmd Command) *cobra.Command {
 	}
 
 	if cmd.Cmd != "" {
+		c.Args = cobra.ArbitraryArgs
 		c.RunE = runShellCmd(cfg, cmd.Cmd)
 	}
 

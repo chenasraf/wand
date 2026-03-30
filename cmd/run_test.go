@@ -76,6 +76,54 @@ func TestRunShellCmd_FailingCommand(t *testing.T) {
 	}
 }
 
+func TestRunShellCmd_PositionalArgs(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, "echo $1 $2")
+	err := fn(nil, []string{"hello", "world"})
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "hello world" {
+		t.Errorf("output = %q, want \"hello world\"", got)
+	}
+}
+
+func TestRunShellCmd_AllArgs(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, "echo $@")
+	err := fn(nil, []string{"a", "b", "c"})
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "a b c" {
+		t.Errorf("output = %q, want \"a b c\"", got)
+	}
+}
+
 func TestRunShellCmd_InvalidShell(t *testing.T) {
 	cfg := &Config{Shell: "/nonexistent/shell"}
 

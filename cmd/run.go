@@ -10,7 +10,7 @@ import (
 func runShellCmd(cfg *Config, command string) func(*cobra.Command, []string) error {
 	return func(_ *cobra.Command, args []string) error {
 		shell := cfg.GetShell()
-		cmdArgs := append([]string{"-c", command}, args...)
+		cmdArgs := append([]string{"-c", command, "_"}, args...)
 		cmd := exec.Command(shell, cmdArgs...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
