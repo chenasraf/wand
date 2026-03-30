@@ -124,6 +124,84 @@ func TestRunShellCmd_AllArgs(t *testing.T) {
 	}
 }
 
+func TestRunShellCmd_CommandEnv(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{
+		Cmd: "echo $MY_VAR",
+		Env: map[string]string{"MY_VAR": "hello"},
+	})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "hello" {
+		t.Errorf("output = %q, want hello", got)
+	}
+}
+
+func TestRunShellCmd_GlobalEnv(t *testing.T) {
+	cfg := &Config{Shell: "sh", Env: map[string]string{"GLOBAL_VAR": "world"}}
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{Cmd: "echo $GLOBAL_VAR"})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "world" {
+		t.Errorf("output = %q, want world", got)
+	}
+}
+
+func TestRunShellCmd_CommandEnvOverridesGlobal(t *testing.T) {
+	cfg := &Config{Shell: "sh", Env: map[string]string{"MY_VAR": "global"}}
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{
+		Cmd: "echo $MY_VAR",
+		Env: map[string]string{"MY_VAR": "local"},
+	})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	if got := strings.TrimSpace(buf.String()); got != "local" {
+		t.Errorf("output = %q, want local (command env should override global)", got)
+	}
+}
+
 func TestRunShellCmd_InvalidShell(t *testing.T) {
 	cfg := &Config{Shell: "/nonexistent/shell"}
 

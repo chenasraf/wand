@@ -228,6 +228,46 @@ main:
 	}
 }
 
+func TestLoadConfig_WithGlobalEnv(t *testing.T) {
+	setupTestConfig(t, `
+.config:
+  env:
+    FOO: bar
+
+main:
+  description: test
+  cmd: echo test
+`)
+
+	cfg, _, err := loadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cfg.Env["FOO"] != "bar" {
+		t.Errorf("global env FOO = %q, want bar", cfg.Env["FOO"])
+	}
+}
+
+func TestLoadConfig_WithCommandEnv(t *testing.T) {
+	setupTestConfig(t, `
+main:
+  description: test
+  cmd: echo test
+  env:
+    MY_VAR: hello
+`)
+
+	_, commands, err := loadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if commands["main"].Env["MY_VAR"] != "hello" {
+		t.Errorf("command env MY_VAR = %q, want hello", commands["main"].Env["MY_VAR"])
+	}
+}
+
 func TestLoadConfig_NoConfigFile(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()

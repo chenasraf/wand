@@ -19,6 +19,8 @@ project tree.
 - **Positional arguments**: pass arguments to commands and reference them with `$1`, `$2`, `$@`.
 - **Custom flags**: define typed flags (string or bool) with aliases, defaults, and descriptions,
   accessible as `$WAND_FLAG_<NAME>` environment variables.
+- **Environment variables**: define env vars globally in `.config` or per command, with command-level
+  overrides.
 - **Built-in help**: auto-generated `--help` for every command and subcommand.
 - **Shell execution**: runs commands via your `$SHELL` with proper stdin/stdout/stderr passthrough.
 
@@ -121,6 +123,7 @@ Each top-level key defines a command. The special key `main` becomes the root (n
 | `cmd`         | `string`             | Shell command to execute            |
 | `children`    | `map[string]Command` | Nested subcommands (same structure) |
 | `flags`       | `map[string]Flag`    | Custom flags (see below)            |
+| `env`         | `map[string]string`  | Environment variables for this command |
 
 ### Flag fields
 
@@ -181,6 +184,30 @@ wand build -o ./dist -v
 
 wand build
 # → output=./bin verbose=false
+```
+
+---
+
+## 🌍 Environment Variables
+
+Define environment variables globally in `.config` or per command. Command-level env vars override
+global ones:
+
+```yaml
+.config:
+  env:
+    NODE_ENV: production
+
+build:
+  description: build the project
+  cmd: echo "env=$NODE_ENV out=$OUTPUT_DIR"
+  env:
+    OUTPUT_DIR: ./dist
+```
+
+```bash
+wand build
+# → env=production out=./dist
 ```
 
 ---

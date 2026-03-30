@@ -8,24 +8,27 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/spf13/viper"
+	"go.yaml.in/yaml/v3"
 )
 
 type Flag struct {
-	Alias       string      `mapstructure:"alias"`
-	Description string      `mapstructure:"description"`
-	Default     interface{} `mapstructure:"default"`
-	Type        string      `mapstructure:"type"`
+	Alias       string      `yaml:"alias"`
+	Description string      `yaml:"description"`
+	Default     interface{} `yaml:"default"`
+	Type        string      `yaml:"type"`
 }
 
 type Command struct {
-	Description string             `mapstructure:"description"`
-	Cmd         string             `mapstructure:"cmd"`
-	Children    map[string]Command `mapstructure:"children"`
-	Flags       map[string]Flag    `mapstructure:"flags"`
+	Description string             `yaml:"description"`
+	Cmd         string             `yaml:"cmd"`
+	Children    map[string]Command `yaml:"children"`
+	Flags       map[string]Flag    `yaml:"flags"`
+	Env         map[string]string  `yaml:"env"`
 }
 
 type Config struct {
-	Shell interface{} `mapstructure:"shell"`
+	Shell interface{}       `yaml:"shell"`
+	Env   map[string]string `yaml:"env"`
 }
 
 func (c *Config) GetShell() string {
@@ -54,28 +57,34 @@ func runtimeOS() string {
 	}
 }
 
+type rawConfig struct {
+	DotConfig *Config            `yaml:".config"`
+	Commands  map[string]Command `yaml:",inline"`
+}
+
 func loadConfig() (*Config, map[string]Command, error) {
-	if err := initConfigPaths(); err != nil {
+	configPath, err := findConfigFile()
+	if err != nil {
 		return nil, nil, err
 	}
 
-	var cfg Config
-	if sub := viper.Sub(".config"); sub != nil {
-		if err := sub.Unmarshal(&cfg); err != nil {
-			return nil, nil, fmt.Errorf("failed to parse .config: %w", err)
-		}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	allEntries := make(map[string]Command)
-	if err := viper.Unmarshal(&allEntries); err != nil {
+	var raw rawConfig
+	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
-	commands := lo.OmitByKeys(allEntries, []string{".config"})
+	cfg := lo.FromPtrOr(raw.DotConfig, Config{})
+	commands := lo.OmitByKeys(raw.Commands, []string{".config"})
+
 	return &cfg, commands, nil
 }
 
-func initConfigPaths() error {
+func findConfigFile() (string, error) {
 	viper.SetConfigName("wand")
 	viper.SetConfigType("yaml")
 
@@ -103,8 +112,8 @@ func initConfigPaths() error {
 	}
 
 	if err := viper.ReadInConfig(); err != nil {
-		return fmt.Errorf("config file not found: %w", err)
+		return "", fmt.Errorf("config file not found: %w", err)
 	}
 
-	return nil
+	return viper.ConfigFileUsed(), nil
 }
