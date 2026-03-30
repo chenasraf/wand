@@ -24,6 +24,7 @@ type Command struct {
 	Children    map[string]Command `yaml:"children"`
 	Flags       map[string]Flag    `yaml:"flags"`
 	Env         map[string]string  `yaml:"env"`
+	WorkingDir  string             `yaml:"working_dir"`
 }
 
 type Config struct {

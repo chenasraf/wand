@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -199,6 +200,33 @@ func TestRunShellCmd_CommandEnvOverridesGlobal(t *testing.T) {
 
 	if got := strings.TrimSpace(buf.String()); got != "local" {
 		t.Errorf("output = %q, want local (command env should override global)", got)
+	}
+}
+
+func TestRunShellCmd_WorkingDir(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	dir := t.TempDir()
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{Cmd: "pwd", WorkingDir: dir})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	// Resolve symlinks for macOS /tmp → /private/tmp
+	resolved, _ := filepath.EvalSymlinks(dir)
+	if got := strings.TrimSpace(buf.String()); got != resolved {
+		t.Errorf("output = %q, want %q", got, resolved)
 	}
 }
 

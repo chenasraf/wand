@@ -268,6 +268,24 @@ main:
 	}
 }
 
+func TestLoadConfig_WithWorkingDir(t *testing.T) {
+	setupTestConfig(t, `
+main:
+  description: test
+  cmd: pwd
+  working_dir: /tmp
+`)
+
+	_, commands, err := loadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if commands["main"].WorkingDir != "/tmp" {
+		t.Errorf("working_dir = %q, want /tmp", commands["main"].WorkingDir)
+	}
+}
+
 func TestLoadConfig_NoConfigFile(t *testing.T) {
 	dir := t.TempDir()
 	origDir, _ := os.Getwd()
