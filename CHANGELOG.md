@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/chenasraf/wand/compare/v1.2.0...v1.3.0) (2026-03-30)
+
+
+### Features
+
+* change wand file via arg or env var ([8200f68](https://github.com/chenasraf/wand/commit/8200f68a896ae38d7b21236ce6ea903d2e006a53))
+
 ## [1.2.0](https://github.com/chenasraf/wand/compare/v1.1.0...v1.2.0) (2026-03-30)
 
 
