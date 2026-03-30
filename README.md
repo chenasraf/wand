@@ -17,6 +17,8 @@ project tree.
   and `~/.config/`.
 - **Nested subcommands**: commands can have arbitrarily deep children.
 - **Positional arguments**: pass arguments to commands and reference them with `$1`, `$2`, `$@`.
+- **Custom flags**: define typed flags (string or bool) with aliases, defaults, and descriptions,
+  accessible as `$WAND_FLAG_<NAME>` environment variables.
 - **Built-in help**: auto-generated `--help` for every command and subcommand.
 - **Shell execution**: runs commands via your `$SHELL` with proper stdin/stdout/stderr passthrough.
 
@@ -118,6 +120,16 @@ Each top-level key defines a command. The special key `main` becomes the root (n
 | `description` | `string`             | Short description shown in `--help` |
 | `cmd`         | `string`             | Shell command to execute            |
 | `children`    | `map[string]Command` | Nested subcommands (same structure) |
+| `flags`       | `map[string]Flag`    | Custom flags (see below)            |
+
+### Flag fields
+
+| Field         | Type     | Description                                       |
+| ------------- | -------- | ------------------------------------------------- |
+| `alias`       | `string` | Single-letter shorthand (e.g. `o` for `-o`)       |
+| `description` | `string` | Description shown in `--help`                     |
+| `default`     | `any`    | Default value (`string` or `bool`)                |
+| `type`        | `string` | `"bool"` for boolean flags, omit for string flags |
 
 ---
 
@@ -135,6 +147,40 @@ greet:
 ```bash
 wand greet world foo bar
 # → Hello, world! You said: world foo bar
+```
+
+---
+
+## 🚩 Flags
+
+Define custom flags per command. Flag values are exposed as `$WAND_FLAG_<NAME>` environment
+variables (uppercased):
+
+```yaml
+build:
+  description: build the project
+  cmd: |
+    echo "output=$WAND_FLAG_OUTPUT verbose=$WAND_FLAG_VERBOSE"
+  flags:
+    output:
+      alias: o
+      description: output path
+      default: ./bin
+    verbose:
+      alias: v
+      description: enable verbose output
+      type: bool
+```
+
+```bash
+wand build --output ./dist --verbose
+# → output=./dist verbose=true
+
+wand build -o ./dist -v
+# → output=./dist verbose=true
+
+wand build
+# → output=./bin verbose=false
 ```
 
 ---

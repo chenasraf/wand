@@ -10,10 +10,18 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Flag struct {
+	Alias       string      `mapstructure:"alias"`
+	Description string      `mapstructure:"description"`
+	Default     interface{} `mapstructure:"default"`
+	Type        string      `mapstructure:"type"`
+}
+
 type Command struct {
 	Description string             `mapstructure:"description"`
 	Cmd         string             `mapstructure:"cmd"`
 	Children    map[string]Command `mapstructure:"children"`
+	Flags       map[string]Flag    `mapstructure:"flags"`
 }
 
 type Config struct {

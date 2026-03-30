@@ -137,6 +137,119 @@ parent:
 	}
 }
 
+func TestBuildCobraCommand_WithStringFlags(t *testing.T) {
+	cfg := &Config{}
+	cmd := Command{
+		Description: "flagged",
+		Cmd:         "echo $WAND_FLAG_OUTPUT",
+		Flags: map[string]Flag{
+			"output": {Alias: "o", Description: "output path", Default: "default.txt"},
+		},
+	}
+
+	c := buildCobraCommand(cfg, "build", cmd)
+
+	f := c.Flags().Lookup("output")
+	if f == nil {
+		t.Fatal("flag 'output' not registered")
+	}
+	if f.Shorthand != "o" {
+		t.Errorf("shorthand = %q, want o", f.Shorthand)
+	}
+	if f.Usage != "output path" {
+		t.Errorf("usage = %q", f.Usage)
+	}
+	if f.DefValue != "default.txt" {
+		t.Errorf("default = %q, want default.txt", f.DefValue)
+	}
+}
+
+func TestBuildCobraCommand_WithBoolFlags(t *testing.T) {
+	cfg := &Config{}
+	cmd := Command{
+		Description: "verbose",
+		Cmd:         "echo $WAND_FLAG_VERBOSE",
+		Flags: map[string]Flag{
+			"verbose": {Alias: "v", Description: "verbose output", Type: "bool"},
+		},
+	}
+
+	c := buildCobraCommand(cfg, "run", cmd)
+
+	f := c.Flags().Lookup("verbose")
+	if f == nil {
+		t.Fatal("flag 'verbose' not registered")
+	}
+	if f.Shorthand != "v" {
+		t.Errorf("shorthand = %q, want v", f.Shorthand)
+	}
+	if f.DefValue != "false" {
+		t.Errorf("default = %q, want false", f.DefValue)
+	}
+}
+
+func TestBuildCobraCommand_FlagNoAlias(t *testing.T) {
+	cfg := &Config{}
+	cmd := Command{
+		Description: "test",
+		Cmd:         "echo test",
+		Flags: map[string]Flag{
+			"count": {Description: "a count"},
+		},
+	}
+
+	c := buildCobraCommand(cfg, "test", cmd)
+
+	f := c.Flags().Lookup("count")
+	if f == nil {
+		t.Fatal("flag 'count' not registered")
+	}
+	if f.Shorthand != "" {
+		t.Errorf("shorthand = %q, want empty", f.Shorthand)
+	}
+}
+
+func TestExecute_WithStringFlag(t *testing.T) {
+	setupTestConfig(t, `
+greet:
+  description: greet
+  cmd: echo $WAND_FLAG_NAME
+  flags:
+    name:
+      alias: n
+      description: who to greet
+`)
+
+	origArgs := setArgs("wand", "greet", "--name", "world")
+	defer restoreArgs(origArgs)
+
+	err := Execute()
+	if err != nil {
+		t.Fatalf("Execute() failed: %v", err)
+	}
+}
+
+func TestExecute_WithBoolFlag(t *testing.T) {
+	setupTestConfig(t, `
+greet:
+  description: greet
+  cmd: echo "verbose=$WAND_FLAG_VERBOSE"
+  flags:
+    verbose:
+      alias: v
+      description: verbose output
+      type: bool
+`)
+
+	origArgs := setArgs("wand", "greet", "--verbose")
+	defer restoreArgs(origArgs)
+
+	err := Execute()
+	if err != nil {
+		t.Fatalf("Execute() failed: %v", err)
+	}
+}
+
 func TestExecute_NoMain(t *testing.T) {
 	setupTestConfig(t, `
 build:

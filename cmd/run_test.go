@@ -25,7 +25,7 @@ func TestRunShellCmd_Basic(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	fn := runShellCmd(cfg, "echo hello")
+	fn := runShellCmd(cfg, Command{Cmd: "echo hello"})
 	err := fn(nil, nil)
 
 	_ = w.Close()
@@ -49,7 +49,7 @@ func TestRunShellCmd_UsesConfiguredShell(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	fn := runShellCmd(cfg, "echo running")
+	fn := runShellCmd(cfg, Command{Cmd: "echo running"})
 	err := fn(nil, nil)
 
 	_ = w.Close()
@@ -68,7 +68,7 @@ func TestRunShellCmd_UsesConfiguredShell(t *testing.T) {
 func TestRunShellCmd_FailingCommand(t *testing.T) {
 	cfg := &Config{Shell: "sh"}
 
-	fn := runShellCmd(cfg, "exit 1")
+	fn := runShellCmd(cfg, Command{Cmd: "exit 1"})
 	err := fn(nil, nil)
 
 	if err == nil {
@@ -84,7 +84,7 @@ func TestRunShellCmd_PositionalArgs(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	fn := runShellCmd(cfg, "echo $1 $2")
+	fn := runShellCmd(cfg, Command{Cmd: "echo $1 $2"})
 	err := fn(nil, []string{"hello", "world"})
 
 	_ = w.Close()
@@ -108,7 +108,7 @@ func TestRunShellCmd_AllArgs(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	fn := runShellCmd(cfg, "echo $@")
+	fn := runShellCmd(cfg, Command{Cmd: "echo $@"})
 	err := fn(nil, []string{"a", "b", "c"})
 
 	_ = w.Close()
@@ -127,7 +127,7 @@ func TestRunShellCmd_AllArgs(t *testing.T) {
 func TestRunShellCmd_InvalidShell(t *testing.T) {
 	cfg := &Config{Shell: "/nonexistent/shell"}
 
-	fn := runShellCmd(cfg, "echo hello")
+	fn := runShellCmd(cfg, Command{Cmd: "echo hello"})
 	err := fn(nil, nil)
 
 	if err == nil {
