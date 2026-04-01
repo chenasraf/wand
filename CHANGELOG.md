@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/chenasraf/wand/compare/v1.3.0...v1.3.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* support ~ ([88cec5d](https://github.com/chenasraf/wand/commit/88cec5d8888e1ff61854dce8e56e19d7e2a95e75))
+
 ## [1.3.0](https://github.com/chenasraf/wand/compare/v1.2.0...v1.3.0) (2026-03-30)
 
 
