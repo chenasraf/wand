@@ -31,7 +31,7 @@ func runShellCmd(cfg *Config, command Command) func(*cobra.Command, []string) er
 		cmd.Stderr = os.Stderr
 		cmd.Env = buildEnv(cfg, command, c)
 		if command.WorkingDir != "" {
-			cmd.Dir = command.WorkingDir
+			cmd.Dir = expandPath(command.WorkingDir)
 		}
 		return cmd.Run()
 	}

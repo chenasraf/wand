@@ -396,6 +396,31 @@ main:
 	}
 }
 
+func TestExpandPath_Tilde(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot determine home dir")
+	}
+
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"~/foo", filepath.Join(home, "foo")},
+		{"~/foo/bar", filepath.Join(home, "foo/bar")},
+		{"~", home},
+		{"/absolute/path", "/absolute/path"},
+		{"relative/path", "relative/path"},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		if got := expandPath(tt.input); got != tt.want {
+			t.Errorf("expandPath(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestLoadConfig_ExplicitPath(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "custom.yml")

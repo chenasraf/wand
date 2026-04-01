@@ -230,6 +230,37 @@ func TestRunShellCmd_WorkingDir(t *testing.T) {
 	}
 }
 
+func TestRunShellCmd_WorkingDirTilde(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot determine home dir")
+	}
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{Cmd: "pwd", WorkingDir: "~"})
+	err = fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+
+	// Resolve symlinks for macOS /tmp → /private/tmp etc.
+	resolved, _ := filepath.EvalSymlinks(home)
+	if got := strings.TrimSpace(buf.String()); got != resolved {
+		t.Errorf("output = %q, want %q", got, resolved)
+	}
+}
+
 func TestRunShellCmd_ConfirmYes(t *testing.T) {
 	cfg := &Config{Shell: "sh"}
 	origReader := stdinReader

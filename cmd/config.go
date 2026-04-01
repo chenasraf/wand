@@ -87,11 +87,23 @@ type rawConfig struct {
 	Commands  map[string]Command `yaml:",inline"`
 }
 
+// expandPath expands a leading ~ to the user's home directory.
+func expandPath(path string) string {
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
+		return filepath.Join(home, path[1:])
+	}
+	return path
+}
+
 func loadConfig(explicitPath string) (*Config, map[string]Command, error) {
 	var configPath string
 	var err error
 	if explicitPath != "" {
-		configPath = explicitPath
+		configPath = expandPath(explicitPath)
 	} else {
 		configPath, err = findConfigFile()
 		if err != nil {
