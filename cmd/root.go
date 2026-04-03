@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var Version string
+
 func Execute() error {
 	configFile := resolveConfigFile()
 	cfg, commands, err := loadConfig(configFile)
@@ -22,6 +24,8 @@ func Execute() error {
 	}
 
 	rootCmd.PersistentFlags().String("wand-file", "", "path to wand config file (overrides discovery)")
+	rootCmd.Version = Version
+	rootCmd.SetVersionTemplate("{{.Version}}\n")
 
 	if main, ok := commands["main"]; ok {
 		rootCmd.Short = main.Description
