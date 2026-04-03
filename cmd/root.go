@@ -40,6 +40,8 @@ func Execute() error {
 		},
 	)
 
+	rootCmd.AddCommand(newCompletionCmd(rootCmd))
+
 	return rootCmd.Execute()
 }
 
