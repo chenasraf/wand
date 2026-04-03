@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/chenasraf/wand/compare/v1.3.1...v1.4.0) (2026-04-03)
+
+
+### Features
+
+* add version flag ([61bc9fe](https://github.com/chenasraf/wand/commit/61bc9fe49f37e119dafae15d4962b23ad2362b1f))
+* support wand file shell completion ([df0c9d7](https://github.com/chenasraf/wand/commit/df0c9d7b7e9e5ea2307e74bb36498f11467b549c))
+
 ## [1.3.1](https://github.com/chenasraf/wand/compare/v1.3.0...v1.3.1) (2026-04-01)
 
 
