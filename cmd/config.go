@@ -30,6 +30,8 @@ type Command struct {
 	Aliases        []string           `yaml:"aliases"`
 	Confirm        interface{}        `yaml:"confirm"`
 	ConfirmDefault string             `yaml:"confirm_default"`
+	Pre            []string           `yaml:"pre"`
+	Post           []string           `yaml:"post"`
 }
 
 // GetConfirmMessage returns the confirm prompt message and whether confirmation is enabled.

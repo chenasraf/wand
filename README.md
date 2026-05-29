@@ -24,6 +24,8 @@ project tree.
 - **Working directory**: override the working directory for any command.
 - **Aliases**: define alternate names for commands.
 - **Confirmation prompts**: require `y/N` confirmation before running destructive commands.
+- **Pre/post hooks**: chain other wand commands to run before or after a command, with full
+  flag/argument forwarding.
 - **Built-in help**: auto-generated `--help` for every command and subcommand.
 - **Shell execution**: runs commands via your `$SHELL` with proper stdin/stdout/stderr passthrough.
 
@@ -143,6 +145,8 @@ Each top-level key defines a command. The special key `main` becomes the root (n
 | `aliases`         | `[]string`           | Alternate names for the command             |
 | `confirm`         | `bool` or `string`   | Prompt for confirmation before running      |
 | `confirm_default` | `string`             | Default answer: `"yes"` or `"no"` (default) |
+| `pre`             | `[]string`           | Wand commands to run before `cmd`           |
+| `post`            | `[]string`           | Wand commands to run after `cmd`            |
 
 ### Flag fields
 
@@ -257,6 +261,76 @@ restart:
 wand deploy
 # → Deploy to production? [y/N]
 ```
+
+---
+
+## 🔗 Pre & Post Hooks
+
+Use `pre` and `post` to run other wand commands before or after a command. Each entry is a
+shell-style string: the first token is the wand command name (subcommands are nested with
+spaces), followed by any args and flags.
+
+```yaml
+lint:
+  description: lint the project
+  cmd: golangci-lint run
+
+test:
+  description: run tests
+  cmd: go test ./...
+
+build:
+  description: build the project
+  pre:
+    - lint
+    - test
+  post:
+    - 'echo "build done: $WAND_FLAG_OUTPUT"'
+  flags:
+    output:
+      alias: o
+      default: ./bin
+  cmd: go build -o $WAND_FLAG_OUTPUT
+```
+
+```bash
+wand build -o ./dist
+# runs: lint → test → go build -o ./dist → echo "build done: ./dist"
+```
+
+### Forwarding flags
+
+Entries are passed through environment variable expansion (`$VAR`, `${VAR}`) before being
+parsed, so `$WAND_FLAG_<NAME>` references resolve to the current command's flag values:
+
+```yaml
+deploy:
+  flags:
+    target:
+      description: deploy target
+      default: staging
+  pre:
+    - 'notify --channel deploys --message "deploying to $WAND_FLAG_TARGET"'
+  cmd: ./deploy.sh $WAND_FLAG_TARGET
+```
+
+Arbitrary flags and arguments can be passed directly:
+
+```yaml
+release:
+  pre:
+    - 'test --verbose'
+    - 'build --output ./dist'
+  cmd: ./release.sh
+```
+
+### Failure semantics
+
+- If a `pre` entry fails, the main `cmd` and remaining `pre`/`post` entries are skipped.
+- If the main `cmd` fails, no `post` entries run.
+- If a `post` entry fails, subsequent `post` entries are skipped.
+
+A command may omit `cmd` and define only `pre`/`post` to act as a pure aggregator.
 
 ---
 

@@ -2,10 +2,14 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func setArgs(args ...string) []string {
@@ -404,5 +408,202 @@ func TestRunShellCmd_InvalidShell(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected error for invalid shell")
+	}
+}
+
+func TestShellSplit(t *testing.T) {
+	cases := []struct {
+		in      string
+		want    []string
+		wantErr bool
+	}{
+		{"", nil, false},
+		{"   ", nil, false},
+		{"one two three", []string{"one", "two", "three"}, false},
+		{`build --output ./dist`, []string{"build", "--output", "./dist"}, false},
+		{`echo "hello world"`, []string{"echo", "hello world"}, false},
+		{`echo 'a b' c`, []string{"echo", "a b", "c"}, false},
+		{`echo a\ b`, []string{"echo", "a b"}, false},
+		{`echo "with \"quotes\""`, []string{"echo", `with "quotes"`}, false},
+		{`unmatched "quote`, nil, true},
+	}
+	for _, tc := range cases {
+		got, err := shellSplit(tc.in)
+		if tc.wantErr {
+			if err == nil {
+				t.Errorf("shellSplit(%q): expected error, got %v", tc.in, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("shellSplit(%q): unexpected error: %v", tc.in, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("shellSplit(%q) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestRunShellCmd_PreRunsBeforeMain(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	var calls []string
+	orig := dispatchWandEntry
+	dispatchWandEntry = func(args []string) error {
+		calls = append(calls, strings.Join(args, " "))
+		return nil
+	}
+	defer func() { dispatchWandEntry = orig }()
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{
+		Cmd: "echo main",
+		Pre: []string{"lint", "test --verbose"},
+	})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+	if got, want := calls, []string{"lint", "test --verbose"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("pre calls = %v, want %v", got, want)
+	}
+	if got := strings.TrimSpace(buf.String()); got != "main" {
+		t.Errorf("output = %q, want main", got)
+	}
+}
+
+func TestRunShellCmd_PostRunsAfterMain(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	var calls []string
+	orig := dispatchWandEntry
+	dispatchWandEntry = func(args []string) error {
+		calls = append(calls, strings.Join(args, " "))
+		return nil
+	}
+	defer func() { dispatchWandEntry = orig }()
+
+	fn := runShellCmd(cfg, Command{
+		Cmd:  "true",
+		Post: []string{"cleanup --force"},
+	})
+	if err := fn(nil, nil); err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+	if got, want := calls, []string{"cleanup --force"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("post calls = %v, want %v", got, want)
+	}
+}
+
+func TestRunShellCmd_PreFailureAbortsMainAndPost(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	var calls []string
+	orig := dispatchWandEntry
+	dispatchWandEntry = func(args []string) error {
+		calls = append(calls, strings.Join(args, " "))
+		if args[0] == "boom" {
+			return fmt.Errorf("boom failed")
+		}
+		return nil
+	}
+	defer func() { dispatchWandEntry = orig }()
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	fn := runShellCmd(cfg, Command{
+		Cmd:  "echo main",
+		Pre:  []string{"boom", "never"},
+		Post: []string{"also-never"},
+	})
+	err := fn(nil, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err == nil {
+		t.Fatal("expected error from failing pre entry")
+	}
+	if got, want := calls, []string{"boom"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("calls = %v, want %v (subsequent pre + post must not run)", got, want)
+	}
+	if got := strings.TrimSpace(buf.String()); got != "" {
+		t.Errorf("output = %q, want empty (main must not run)", got)
+	}
+}
+
+func TestRunShellCmd_PostSkippedOnMainFailure(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	var calls []string
+	orig := dispatchWandEntry
+	dispatchWandEntry = func(args []string) error {
+		calls = append(calls, strings.Join(args, " "))
+		return nil
+	}
+	defer func() { dispatchWandEntry = orig }()
+
+	fn := runShellCmd(cfg, Command{
+		Cmd:  "exit 1",
+		Post: []string{"never"},
+	})
+	if err := fn(nil, nil); err == nil {
+		t.Fatal("expected error from failing main")
+	}
+	if len(calls) != 0 {
+		t.Errorf("post calls = %v, want none (main failed)", calls)
+	}
+}
+
+func TestRunShellCmd_EntryExpandsWandFlag(t *testing.T) {
+	var calls [][]string
+	orig := dispatchWandEntry
+	dispatchWandEntry = func(args []string) error {
+		calls = append(calls, append([]string(nil), args...))
+		return nil
+	}
+	defer func() { dispatchWandEntry = orig }()
+
+	parent := &cobra.Command{Use: "parent"}
+	parent.Flags().String("target", "alice", "")
+	parentCmd := Command{Flags: map[string]Flag{"target": {}}}
+
+	if err := runDispatchEntry("greet --who $WAND_FLAG_TARGET", parent, parentCmd); err != nil {
+		t.Fatalf("runDispatchEntry failed: %v", err)
+	}
+	if got, want := calls, [][]string{{"greet", "--who", "alice"}}; !reflect.DeepEqual(got, want) {
+		t.Errorf("dispatched args = %v, want %v", got, want)
+	}
+}
+
+func TestRunShellCmd_NoCmdRunsOnlyPrePost(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	var calls []string
+	orig := dispatchWandEntry
+	dispatchWandEntry = func(args []string) error {
+		calls = append(calls, args[0])
+		return nil
+	}
+	defer func() { dispatchWandEntry = orig }()
+
+	fn := runShellCmd(cfg, Command{
+		Pre:  []string{"a"},
+		Post: []string{"b"},
+	})
+	if err := fn(nil, nil); err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+	if got, want := calls, []string{"a", "b"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("calls = %v, want %v", got, want)
 	}
 }

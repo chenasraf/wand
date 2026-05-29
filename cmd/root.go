@@ -46,6 +46,11 @@ func Execute() error {
 
 	rootCmd.AddCommand(newCompletionCmd(rootCmd))
 
+	dispatchWandEntry = func(args []string) error {
+		rootCmd.SetArgs(args)
+		return rootCmd.Execute()
+	}
+
 	return rootCmd.Execute()
 }
 
