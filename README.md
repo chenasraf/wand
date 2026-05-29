@@ -332,6 +332,29 @@ release:
 
 A command may omit `cmd` and define only `pre`/`post` to act as a pure aggregator.
 
+### Private commands
+
+Prefix a command name with `_` to mark it as private: it is hidden from `--help` output but
+remains fully runnable, both directly (useful for testing) and from `pre`/`post` entries. The
+same rule applies to nested children.
+
+```yaml
+build:
+  pre:
+    - _ensure-deps
+  cmd: go build
+
+_ensure-deps:
+  description: install required tools
+  cmd: ./scripts/install-deps.sh
+```
+
+```bash
+wand --help        # _ensure-deps is not listed
+wand _ensure-deps  # still runs directly
+wand build         # runs _ensure-deps then the build
+```
+
 ---
 
 ## 🛠️ Contributing

@@ -59,6 +59,7 @@ func buildCobraCommand(cfg *Config, name string, cmd Command) *cobra.Command {
 		Use:     name,
 		Aliases: cmd.Aliases,
 		Short:   cmd.Description,
+		Hidden:  strings.HasPrefix(name, "_"),
 	}
 
 	if cmd.Cmd != "" {

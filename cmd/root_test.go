@@ -24,6 +24,49 @@ func TestBuildCobraCommand_Basic(t *testing.T) {
 	if c.RunE == nil {
 		t.Error("RunE should be set when Cmd is non-empty")
 	}
+	if c.Hidden {
+		t.Error("command without underscore prefix should not be hidden")
+	}
+}
+
+func TestBuildCobraCommand_UnderscorePrefixIsHidden(t *testing.T) {
+	cfg := &Config{}
+	cmd := Command{Description: "private", Cmd: "echo private"}
+
+	c := buildCobraCommand(cfg, "_setup", cmd)
+
+	if !c.Hidden {
+		t.Error("command with _ prefix should be Hidden")
+	}
+	if c.RunE == nil {
+		t.Error("hidden command should still be runnable")
+	}
+}
+
+func TestBuildCobraCommand_UnderscorePrefixChildHidden(t *testing.T) {
+	cfg := &Config{}
+	cmd := Command{
+		Cmd: "echo parent",
+		Children: map[string]Command{
+			"_internal": {Cmd: "echo internal"},
+			"public":    {Cmd: "echo public"},
+		},
+	}
+
+	c := buildCobraCommand(cfg, "parent", cmd)
+
+	for _, child := range c.Commands() {
+		switch child.Use {
+		case "_internal":
+			if !child.Hidden {
+				t.Error("_internal child should be Hidden")
+			}
+		case "public":
+			if child.Hidden {
+				t.Error("public child should not be Hidden")
+			}
+		}
+	}
 }
 
 func TestBuildCobraCommand_NoCmd(t *testing.T) {
