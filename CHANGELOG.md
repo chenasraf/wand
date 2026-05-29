@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/chenasraf/wand/compare/v1.4.0...v1.5.0) (2026-05-29)
+
+
+### Features
+
+* **cmd:** hide commands prefixed with _ from help ([6c55c25](https://github.com/chenasraf/wand/commit/6c55c25e966c55c740334b8d84e10195b3195561))
+* **cmd:** pre and post command hooks ([aeb770d](https://github.com/chenasraf/wand/commit/aeb770d0189a9b5601d454e1a2bd845c03292f09))
+
 ## [1.4.0](https://github.com/chenasraf/wand/compare/v1.3.1...v1.4.0) (2026-04-03)
 
 
