@@ -195,7 +195,8 @@ wand greet world foo bar
 ## 🚩 Flags
 
 Define custom flags per command. Flag values are exposed as `$WAND_FLAG_<NAME>` environment
-variables (uppercased):
+variables (uppercased, with hyphens converted to underscores — `--dry-run` becomes
+`$WAND_FLAG_DRY_RUN`):
 
 ```yaml
 build:
@@ -370,6 +371,23 @@ wand deploy
 # → Deploy to production? [y/N]
 ```
 
+The message is expanded like a command: `$1`, `$@`, `$WAND_FLAG_<NAME>`, and environment variables
+all resolve, so a prompt can name what it is about to affect:
+
+```yaml
+deploy:
+  cmd: ./deploy.sh $WAND_FLAG_TARGET
+  confirm: 'Deploy $1 to $WAND_FLAG_TARGET?'
+  flags:
+    target:
+      default: staging
+```
+
+```bash
+wand deploy myapp --target prod
+# → Deploy myapp to prod? [y/N]
+```
+
 ---
 
 ## 🔗 Pre & Post Hooks
@@ -408,9 +426,8 @@ wand build -o ./dist
 
 ### Forwarding flags
 
-Entries are passed through environment variable expansion (`$VAR`, `${VAR}`) before being
-parsed, so `$WAND_FLAG_<NAME>` references resolve to the current command's flag values (global flags
-included):
+Entries are expanded before being parsed, so `$1`, `$@`, `$WAND_FLAG_<NAME>` (global flags
+included), and environment variables all resolve to the current command's values:
 
 ```yaml
 deploy:

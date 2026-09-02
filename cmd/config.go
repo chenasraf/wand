@@ -145,13 +145,16 @@ var (
 )
 
 // validateFlags rejects flag definitions that cannot be registered: multi-character
-// aliases, wand's own flags, and aliases claimed twice in the same flag set.
+// aliases, wand's own flags, and aliases or environment variables claimed twice in
+// the same flag set.
 func validateFlags(scope string, flags map[string]Flag, inherited map[string]Flag) error {
 	byAlias := map[string]string{}
+	byEnvKey := map[string]string{}
 	for name, flag := range inherited {
 		if flag.Alias != "" {
 			byAlias[flag.Alias] = name
 		}
+		byEnvKey[flagEnvKey(name)] = name
 	}
 
 	names := lo.Keys(flags)
@@ -161,6 +164,12 @@ func validateFlags(scope string, flags map[string]Flag, inherited map[string]Fla
 		if lo.Contains(reservedFlagNames, name) {
 			return fmt.Errorf("%s: flag %q is reserved by wand", scope, name)
 		}
+		// "dry-run" and "dry_run" would both resolve to $WAND_FLAG_DRY_RUN
+		if other, ok := byEnvKey[flagEnvKey(name)]; ok && other != name {
+			return fmt.Errorf("%s: flags %q and %q both map to $%s", scope, other, name, flagEnvKey(name))
+		}
+		byEnvKey[flagEnvKey(name)] = name
+
 		if flag.Alias == "" {
 			continue
 		}

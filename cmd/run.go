@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/samber/lo"
@@ -21,14 +22,16 @@ var dispatchWandEntry func(args []string) error
 
 func runShellCmd(cfg *Config, command Command) func(*cobra.Command, []string) error {
 	return func(c *cobra.Command, args []string) error {
+		exp := expansion{cmd: c, args: args, global: cfg.Flags, local: command.Flags}
+
 		if msg, ok := command.GetConfirmMessage(); ok {
-			if !promptConfirm(msg, command.GetConfirmDefault()) {
+			if !promptConfirm(exp.expand(msg), command.GetConfirmDefault()) {
 				return nil
 			}
 		}
 
 		for _, entry := range command.Pre {
-			if err := runDispatchEntry(entry, c, cfg, command); err != nil {
+			if err := runDispatchEntry(entry, exp); err != nil {
 				return err
 			}
 		}
@@ -40,7 +43,7 @@ func runShellCmd(cfg *Config, command Command) func(*cobra.Command, []string) er
 		}
 
 		for _, entry := range command.Post {
-			if err := runDispatchEntry(entry, c, cfg, command); err != nil {
+			if err := runDispatchEntry(entry, exp); err != nil {
 				return err
 			}
 		}
@@ -62,9 +65,8 @@ func execShell(cfg *Config, command Command, c *cobra.Command, args []string) er
 	return cmd.Run()
 }
 
-func runDispatchEntry(entry string, parent *cobra.Command, cfg *Config, parentCmd Command) error {
-	expanded := expandEntryVars(entry, parent, cfg, parentCmd)
-	tokens, err := shellSplit(expanded)
+func runDispatchEntry(entry string, exp expansion) error {
+	tokens, err := shellSplit(exp.expand(entry))
 	if err != nil {
 		return fmt.Errorf("invalid pre/post entry %q: %w", entry, err)
 	}
@@ -77,23 +79,63 @@ func runDispatchEntry(entry string, parent *cobra.Command, cfg *Config, parentCm
 	return dispatchWandEntry(tokens)
 }
 
-// expandEntryVars resolves $VAR and ${VAR} in a pre/post entry. WAND_FLAG_<NAME>
-// references resolve to the parent command's flag value, or to a global flag;
-// everything else falls back to the process environment.
-func expandEntryVars(s string, parent *cobra.Command, cfg *Config, parentCmd Command) string {
+// expansion resolves the $VAR references a command's confirm prompt and its
+// pre/post entries are written against. The command's own `cmd` is expanded by
+// the shell instead, so both see the same names.
+type expansion struct {
+	cmd    *cobra.Command
+	args   []string
+	global map[string]Flag
+	local  map[string]Flag
+}
+
+// expand resolves $VAR and ${VAR}: positional arguments, then WAND_FLAG_<NAME>
+// against the command's flags, then the process environment.
+func (e expansion) expand(s string) string {
 	return os.Expand(s, func(key string) string {
-		if strings.HasPrefix(key, "WAND_FLAG_") && parent != nil {
-			name := strings.ToLower(strings.TrimPrefix(key, "WAND_FLAG_"))
-			_, isLocal := parentCmd.Flags[name]
-			_, isGlobal := lo.FromPtrOr(cfg, Config{}).Flags[name]
-			if isLocal || isGlobal {
-				if f := parent.Flags().Lookup(name); f != nil {
-					return f.Value.String()
-				}
-			}
+		if v, ok := e.positional(key); ok {
+			return v
+		}
+		if v, ok := e.flag(key); ok {
+			return v
 		}
 		return os.Getenv(key)
 	})
+}
+
+// positional resolves $1, $2, … and $@ / $*, matching how the shell expands them
+// in a command's `cmd`. An index past the end is empty, as in a shell.
+func (e expansion) positional(key string) (string, bool) {
+	if key == "@" || key == "*" {
+		return strings.Join(e.args, " "), true
+	}
+	n, err := strconv.Atoi(key)
+	if err != nil || n < 1 {
+		return "", false
+	}
+	if n > len(e.args) {
+		return "", true
+	}
+	return e.args[n-1], true
+}
+
+// flag resolves WAND_FLAG_<NAME> to a flag's current value, preferring the
+// command's own flag over a global one of the same name.
+func (e expansion) flag(key string) (string, bool) {
+	if e.cmd == nil || !strings.HasPrefix(key, "WAND_FLAG_") {
+		return "", false
+	}
+	for _, flags := range []map[string]Flag{e.local, e.global} {
+		for name := range flags {
+			if flagEnvKey(name) != key {
+				continue
+			}
+			if f := e.cmd.Flags().Lookup(name); f != nil {
+				return f.Value.String(), true
+			}
+		}
+	}
+	return "", false
 }
 
 // shellSplit performs minimal shell-style word splitting that honors single and
@@ -166,9 +208,16 @@ func mapToEnvSlice(m map[string]string) []string {
 	})
 }
 
+// flagEnvKey maps a flag name to the environment variable carrying its value.
+// Hyphens become underscores: a flag named "dry-run" would otherwise produce
+// WAND_FLAG_DRY-RUN, which no shell can reference.
+func flagEnvKey(name string) string {
+	return "WAND_FLAG_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_"))
+}
+
 func flagsToEnv(c *cobra.Command, flags map[string]Flag) []string {
 	return lo.MapToSlice(flags, func(name string, flag Flag) string {
-		envKey := "WAND_FLAG_" + strings.ToUpper(name)
+		envKey := flagEnvKey(name)
 		if flag.Type == "bool" {
 			val, _ := c.Flags().GetBool(name)
 			return fmt.Sprintf("%s=%t", envKey, val)

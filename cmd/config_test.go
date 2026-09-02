@@ -663,3 +663,27 @@ func TestCompletionLong_ShowsWandFileByDefault(t *testing.T) {
 		t.Errorf("completion help should show --wand-file by default:\n%s", long)
 	}
 }
+
+func TestValidateConfigFlags_EnvKeyCollision(t *testing.T) {
+	commands := map[string]Command{
+		"deploy": {Flags: map[string]Flag{"dry-run": {}, "dry_run": {}}},
+	}
+
+	err := validateConfigFlags(&Config{}, commands)
+	if err == nil {
+		t.Fatal("validateConfigFlags() = nil, want an env key collision error")
+	}
+	want := `command deploy: flags "dry-run" and "dry_run" both map to $WAND_FLAG_DRY_RUN`
+	if err.Error() != want {
+		t.Errorf("validateConfigFlags() = %q, want %q", err, want)
+	}
+}
+
+func TestValidateConfigFlags_HyphenFlagIsValid(t *testing.T) {
+	cfg := &Config{Flags: map[string]Flag{"log-level": {Alias: "L"}}}
+	commands := map[string]Command{"deploy": {Flags: map[string]Flag{"dry-run": {Alias: "d"}}}}
+
+	if err := validateConfigFlags(cfg, commands); err != nil {
+		t.Errorf("validateConfigFlags() = %v, want nil", err)
+	}
+}

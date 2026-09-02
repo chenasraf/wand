@@ -578,7 +578,8 @@ func TestRunShellCmd_EntryExpandsWandFlag(t *testing.T) {
 	parent.Flags().String("target", "alice", "")
 	parentCmd := Command{Flags: map[string]Flag{"target": {}}}
 
-	if err := runDispatchEntry("greet --who $WAND_FLAG_TARGET", parent, &Config{}, parentCmd); err != nil {
+	exp := expansion{cmd: parent, local: parentCmd.Flags}
+	if err := runDispatchEntry("greet --who $WAND_FLAG_TARGET", exp); err != nil {
 		t.Fatalf("runDispatchEntry failed: %v", err)
 	}
 	if got, want := calls, [][]string{{"greet", "--who", "alice"}}; !reflect.DeepEqual(got, want) {
@@ -605,5 +606,144 @@ func TestRunShellCmd_NoCmdRunsOnlyPrePost(t *testing.T) {
 	}
 	if got, want := calls, []string{"a", "b"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("calls = %v, want %v", got, want)
+	}
+}
+
+func TestFlagEnvKey(t *testing.T) {
+	tests := map[string]string{
+		"output":    "WAND_FLAG_OUTPUT",
+		"dry-run":   "WAND_FLAG_DRY_RUN",
+		"log-level": "WAND_FLAG_LOG_LEVEL",
+		"dry_run":   "WAND_FLAG_DRY_RUN",
+	}
+	for name, want := range tests {
+		if got := flagEnvKey(name); got != want {
+			t.Errorf("flagEnvKey(%q) = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestRunShellCmd_HyphenatedFlagReachesShell(t *testing.T) {
+	cfg := &Config{Shell: "sh"}
+	command := Command{
+		Cmd:   "echo $WAND_FLAG_DRY_RUN",
+		Flags: map[string]Flag{"dry-run": {Type: "bool"}},
+	}
+
+	c := &cobra.Command{Use: "deploy"}
+	registerFlags(c, command.Flags)
+	if err := c.Flags().Set("dry-run", "true"); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runShellCmd(cfg, command)(c, nil)
+
+	_ = w.Close()
+	os.Stdout = origStdout
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+	if got := strings.TrimSpace(buf.String()); got != "true" {
+		t.Errorf("output = %q, want true (hyphenated flag should map to WAND_FLAG_DRY_RUN)", got)
+	}
+}
+
+func TestRunShellCmd_ConfirmExpandsVars(t *testing.T) {
+	cfg := &Config{Shell: "sh", Flags: map[string]Flag{"log-level": {Default: "info"}}}
+	command := Command{
+		Cmd:     "true",
+		Confirm: "Deploy $1 at $WAND_FLAG_LOG_LEVEL (dry=$WAND_FLAG_DRY_RUN)?",
+		Flags:   map[string]Flag{"dry-run": {Type: "bool"}},
+	}
+
+	c := &cobra.Command{Use: "deploy"}
+	registerFlags(c, command.Flags)
+	registerFlagsOn(c.Flags(), cfg.Flags)
+	if err := c.Flags().Set("dry-run", "true"); err != nil {
+		t.Fatal(err)
+	}
+
+	origStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	origStdin := stdinReader
+	stdinReader = strings.NewReader("y\n")
+	defer func() { stdinReader = origStdin }()
+
+	err := runShellCmd(cfg, command)(c, []string{"prod"})
+
+	_ = w.Close()
+	os.Stderr = origStderr
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+
+	if err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+	want := "Deploy prod at info (dry=true)? [y/N]"
+	if got := strings.TrimSpace(buf.String()); got != want {
+		t.Errorf("prompt = %q, want %q", got, want)
+	}
+}
+
+func TestExpansion_Positional(t *testing.T) {
+	exp := expansion{args: []string{"one", "two"}}
+
+	tests := map[string]string{
+		"$1":     "one",
+		"$2":     "two",
+		"$3":     "",
+		"${1}":   "one",
+		"$@":     "one two",
+		"$*":     "one two",
+		"a $1 b": "a one b",
+	}
+	for in, want := range tests {
+		if got := exp.expand(in); got != want {
+			t.Errorf("expand(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestExpansion_LocalFlagShadowsGlobal(t *testing.T) {
+	c := &cobra.Command{Use: "deploy"}
+	c.Flags().String("profile", "local", "")
+
+	exp := expansion{
+		cmd:    c,
+		local:  map[string]Flag{"profile": {}},
+		global: map[string]Flag{"profile": {}},
+	}
+
+	if got := exp.expand("$WAND_FLAG_PROFILE"); got != "local" {
+		t.Errorf("expand = %q, want local", got)
+	}
+}
+
+func TestRunShellCmd_PreEntryExpandsPositional(t *testing.T) {
+	var calls [][]string
+	orig := dispatchWandEntry
+	dispatchWandEntry = func(args []string) error {
+		calls = append(calls, append([]string(nil), args...))
+		return nil
+	}
+	defer func() { dispatchWandEntry = orig }()
+
+	cfg := &Config{Shell: "sh"}
+	command := Command{Pre: []string{`notify "releasing $1"`}}
+
+	if err := runShellCmd(cfg, command)(&cobra.Command{Use: "release"}, []string{"v1.2.3"}); err != nil {
+		t.Fatalf("runShellCmd failed: %v", err)
+	}
+	if got, want := calls, [][]string{{"notify", "releasing v1.2.3"}}; !reflect.DeepEqual(got, want) {
+		t.Errorf("dispatched args = %v, want %v", got, want)
 	}
 }
