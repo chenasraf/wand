@@ -21,6 +21,7 @@ project tree.
   accessible as `$WAND_FLAG_<NAME>` environment variables.
 - **Global flags**: declare flags once in `.config` and use them with any command, before or after
   the command name.
+- **Custom binary name**: rename the tool in help output to present a config as its own CLI.
 - **Environment variables**: define env vars globally in `.config` or per command, with
   command-level overrides.
 - **Working directory**: override the working directory for any command.
@@ -139,11 +140,12 @@ file. The special key `main` becomes the root (no-argument) command.
 
 ### `.config` fields
 
-| Field   | Type                | Description                                   |
-| ------- | ------------------- | --------------------------------------------- |
-| `shell` | `string` or `map`   | Shell used to run commands, optionally per OS |
-| `env`   | `map[string]string` | Environment variables for every command       |
-| `flags` | `map[string]Flag`   | Flags available to every command (see below)  |
+| Field      | Type                | Description                                   |
+| ---------- | ------------------- | --------------------------------------------- |
+| `shell`    | `string` or `map`   | Shell used to run commands, optionally per OS |
+| `env`      | `map[string]string` | Environment variables for every command       |
+| `flags`    | `map[string]Flag`   | Flags available to every command (see below)  |
+| `bin_name` | `string`            | Name shown in help output (default `wand`)    |
 
 ### Command fields
 
@@ -275,6 +277,45 @@ wand deploy
 
 Global flag names and aliases must not collide with each other, with a command's own flags, or with
 wand's built-in `--wand-file` and `--help`.
+
+---
+
+## 🏷️ Binary Name
+
+Set `bin_name` to have help and usage output name your tool instead of `wand`. This suits a config
+exposed through a wrapper or alias, so it reads as its own CLI:
+
+```yaml
+.config:
+  bin_name: nxc
+
+sync:
+  description: sync files
+  cmd: ./sync.sh
+```
+
+```bash
+wand --wand-file ~/.config/wand/nextcloud.yml --help
+```
+
+```
+Usage:
+  nxc [command]
+
+Available Commands:
+  sync        sync files
+
+Use "nxc [command] --help" for more information about a command.
+```
+
+The name flows through nested command paths (`nxc sync --help`) and generated completion scripts.
+`--wand-file` drops out of the help output when `bin_name` is set, since the renamed tool presents
+itself as its own CLI — the flag keeps working, so a wrapper can still point at the config:
+
+```bash
+#!/bin/sh
+exec wand --wand-file ~/.config/wand/nextcloud.yml "$@"
+```
 
 ---
 

@@ -516,3 +516,124 @@ func TestRegisterFlagsOn_GlobalFlags(t *testing.T) {
 		t.Errorf("verbose = %+v, want a bool flag", verbose)
 	}
 }
+
+func TestExecute_BinNameInHelp(t *testing.T) {
+	setupTestConfig(t, `
+.config:
+  bin_name: nxc
+
+build:
+  description: build it
+  cmd: echo build
+`)
+
+	origArgs := setArgs("wand", "--help")
+	defer restoreArgs(origArgs)
+
+	out := captureStdout(t, Execute)
+
+	for _, want := range []string{"nxc [command]", `Use "nxc [command] --help"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("help output missing %q:\n%s", want, out)
+		}
+	}
+	// --wand-file is wand's own flag and keeps its name
+	if strings.Contains(out, "wand [command]") {
+		t.Errorf("help output should not use the default name:\n%s", out)
+	}
+}
+
+func TestExecute_BinNameInSubcommandHelp(t *testing.T) {
+	setupTestConfig(t, `
+.config:
+  bin_name: nxc
+
+build:
+  description: build it
+  cmd: echo build
+  children:
+    docs:
+      description: build docs
+      cmd: echo docs
+`)
+
+	origArgs := setArgs("wand", "build", "--help")
+	defer restoreArgs(origArgs)
+
+	out := captureStdout(t, Execute)
+
+	if !strings.Contains(out, "nxc build [command]") {
+		t.Errorf("subcommand help should use the configured bin name:\n%s", out)
+	}
+}
+
+func TestExecute_DefaultBinName(t *testing.T) {
+	setupTestConfig(t, `
+build:
+  description: build it
+  cmd: echo build
+`)
+
+	origArgs := setArgs("wand", "--help")
+	defer restoreArgs(origArgs)
+
+	out := captureStdout(t, Execute)
+
+	if !strings.Contains(out, "wand [command]") {
+		t.Errorf("help output should default to wand:\n%s", out)
+	}
+}
+
+func TestExecute_BinNameHidesWandFile(t *testing.T) {
+	setupTestConfig(t, `
+.config:
+  bin_name: nxc
+
+build:
+  description: build it
+  cmd: echo build
+`)
+
+	origArgs := setArgs("wand", "--help")
+	defer restoreArgs(origArgs)
+
+	if out := captureStdout(t, Execute); strings.Contains(out, "--wand-file") {
+		t.Errorf("--wand-file should be hidden when bin_name is set:\n%s", out)
+	}
+}
+
+func TestExecute_WandFileStillWorksWithBinName(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "custom.yml")
+	if err := os.WriteFile(configPath, []byte(`
+.config:
+  bin_name: nxc
+
+main:
+  cmd: echo from-custom
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origArgs := setArgs("wand", "--wand-file", configPath)
+	defer restoreArgs(origArgs)
+
+	if got := captureStdout(t, Execute); got != "from-custom" {
+		t.Errorf("output = %q, want from-custom (hidden flag must still parse)", got)
+	}
+}
+
+func TestExecute_DefaultBinNameShowsWandFile(t *testing.T) {
+	setupTestConfig(t, `
+build:
+  description: build it
+  cmd: echo build
+`)
+
+	origArgs := setArgs("wand", "--help")
+	defer restoreArgs(origArgs)
+
+	if out := captureStdout(t, Execute); !strings.Contains(out, "--wand-file") {
+		t.Errorf("--wand-file should be listed by default:\n%s", out)
+	}
+}

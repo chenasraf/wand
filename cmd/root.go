@@ -23,12 +23,17 @@ func Execute() error {
 	}
 
 	rootCmd := &cobra.Command{
-		Use:           "wand",
+		Use:           cfg.GetBinName(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 
 	rootCmd.PersistentFlags().String("wand-file", "", "path to wand config file (overrides discovery)")
+	// a renamed binary presents itself as its own tool, so wand's config flag stays
+	// functional (wrappers pass it) but drops out of the help output
+	if cfg.BinName != "" {
+		_ = rootCmd.PersistentFlags().MarkHidden("wand-file")
+	}
 	registerFlagsOn(rootCmd.PersistentFlags(), cfg.Flags)
 	rootCmd.Version = Version
 	rootCmd.SetVersionTemplate("{{.Version}}\n")

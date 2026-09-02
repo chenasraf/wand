@@ -55,9 +55,15 @@ func (c Command) GetConfirmDefault() bool {
 }
 
 type Config struct {
-	Shell interface{}       `yaml:"shell"`
-	Env   map[string]string `yaml:"env"`
-	Flags map[string]Flag   `yaml:"flags"`
+	Shell   interface{}       `yaml:"shell"`
+	Env     map[string]string `yaml:"env"`
+	Flags   map[string]Flag   `yaml:"flags"`
+	BinName string            `yaml:"bin_name"`
+}
+
+// GetBinName returns the name shown in help and usage output.
+func (c *Config) GetBinName() string {
+	return lo.CoalesceOrEmpty(c.BinName, "wand")
 }
 
 func (c *Config) GetShell() string {

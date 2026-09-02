@@ -4,9 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/samber/lo"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
@@ -603,5 +605,61 @@ func TestValidateConfigFlags_Errors(t *testing.T) {
 				t.Errorf("validateConfigFlags() = %q, want %q", err, tt.want)
 			}
 		})
+	}
+}
+
+func TestGetBinName_Default(t *testing.T) {
+	cfg := &Config{}
+	if got := cfg.GetBinName(); got != "wand" {
+		t.Errorf("GetBinName() = %q, want wand", got)
+	}
+}
+
+func TestGetBinName_Custom(t *testing.T) {
+	cfg := &Config{BinName: "nxc"}
+	if got := cfg.GetBinName(); got != "nxc" {
+		t.Errorf("GetBinName() = %q, want nxc", got)
+	}
+}
+
+func TestLoadConfig_BinName(t *testing.T) {
+	setupTestConfig(t, `
+.config:
+  bin_name: nxc
+
+main:
+  cmd: echo hello
+`)
+
+	cfg, _, err := loadConfig("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cfg.GetBinName() != "nxc" {
+		t.Errorf("GetBinName() = %q, want nxc", cfg.GetBinName())
+	}
+}
+
+func TestCompletionLong_OmitsWandFileWhenHidden(t *testing.T) {
+	root := &cobra.Command{Use: "nxc"}
+	root.PersistentFlags().String("wand-file", "", "")
+	_ = root.PersistentFlags().MarkHidden("wand-file")
+
+	long := completionLong(root)
+	if strings.Contains(long, "--wand-file") {
+		t.Errorf("completion help should omit --wand-file when hidden:\n%s", long)
+	}
+	if !strings.Contains(long, "nxc completion") {
+		t.Errorf("completion help should use the bin name:\n%s", long)
+	}
+}
+
+func TestCompletionLong_ShowsWandFileByDefault(t *testing.T) {
+	root := &cobra.Command{Use: "wand"}
+	root.PersistentFlags().String("wand-file", "", "")
+
+	if long := completionLong(root); !strings.Contains(long, "--wand-file") {
+		t.Errorf("completion help should show --wand-file by default:\n%s", long)
 	}
 }
