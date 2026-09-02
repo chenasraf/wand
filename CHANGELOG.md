@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0](https://github.com/chenasraf/wand/compare/v1.5.0...v1.6.0) (2026-09-02)
+
+
+### Features
+
+* **cmd:** bin_name config option to rename the tool in help output ([5453bdb](https://github.com/chenasraf/wand/commit/5453bdbc4dc91bcf48cd67a385b9a5ee51e0d047))
+* **cmd:** global flags in .config available to all commands ([473ac53](https://github.com/chenasraf/wand/commit/473ac53dd88a374990f0ecf212b39737cf62731c))
+
 ## [1.5.0](https://github.com/chenasraf/wand/compare/v1.4.0...v1.5.0) (2026-05-29)
 
 
