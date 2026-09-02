@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestBuildCobraCommand_Basic(t *testing.T) {
@@ -403,5 +407,112 @@ build:
 	err := Execute()
 	if err != nil {
 		t.Fatalf("Execute() failed: %v", err)
+	}
+}
+
+func TestExecute_GlobalFlagAfterCommandName(t *testing.T) {
+	setupTestConfig(t, `
+.config:
+  flags:
+    profile:
+      alias: p
+      default: dev
+
+build:
+  cmd: echo $WAND_FLAG_PROFILE
+`)
+
+	origArgs := setArgs("wand", "build", "--profile", "prod")
+	defer restoreArgs(origArgs)
+
+	if got := captureStdout(t, Execute); got != "prod" {
+		t.Errorf("output = %q, want prod", got)
+	}
+}
+
+func TestExecute_GlobalFlagBeforeCommandName(t *testing.T) {
+	setupTestConfig(t, `
+.config:
+  flags:
+    profile:
+      alias: p
+      default: dev
+    verbose:
+      alias: V
+      type: bool
+
+build:
+  cmd: echo $WAND_FLAG_PROFILE
+  children:
+    docs:
+      cmd: echo $WAND_FLAG_PROFILE
+`)
+
+	origArgs := setArgs("wand", "-p", "prod", "--verbose", "build", "docs")
+	defer restoreArgs(origArgs)
+
+	if got := captureStdout(t, Execute); got != "prod" {
+		t.Errorf("output = %q, want prod", got)
+	}
+}
+
+// captureStdout runs fn with os.Stdout redirected and returns the trimmed output.
+func captureStdout(t *testing.T, fn func() error) string {
+	t.Helper()
+	orig := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+
+	runErr := fn()
+
+	_ = w.Close()
+	os.Stdout = orig
+
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatal(err)
+	}
+	if runErr != nil {
+		t.Fatalf("Execute() failed: %v", runErr)
+	}
+	return strings.TrimSpace(buf.String())
+}
+
+func TestExecute_InvalidGlobalFlagReturnsError(t *testing.T) {
+	setupTestConfig(t, `
+.config:
+  flags:
+    wand-file:
+      description: nope
+
+main:
+  cmd: echo hello
+`)
+
+	err := Execute()
+	if err == nil {
+		t.Fatal("Execute() = nil, want an error for a reserved global flag name")
+	}
+}
+
+func TestRegisterFlagsOn_GlobalFlags(t *testing.T) {
+	c := &cobra.Command{Use: "wand"}
+	registerFlagsOn(c.PersistentFlags(), map[string]Flag{
+		"profile": {Alias: "p", Default: "dev", Description: "config profile"},
+		"verbose": {Alias: "V", Type: "bool"},
+	})
+
+	profile := c.PersistentFlags().Lookup("profile")
+	if profile == nil {
+		t.Fatal("profile should be registered as a persistent flag")
+	}
+	if profile.Shorthand != "p" || profile.DefValue != "dev" {
+		t.Errorf("profile = %+v, want shorthand p and default dev", profile)
+	}
+	if verbose := c.PersistentFlags().Lookup("verbose"); verbose == nil || verbose.Value.Type() != "bool" {
+		t.Errorf("verbose = %+v, want a bool flag", verbose)
 	}
 }

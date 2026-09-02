@@ -28,7 +28,7 @@ func runShellCmd(cfg *Config, command Command) func(*cobra.Command, []string) er
 		}
 
 		for _, entry := range command.Pre {
-			if err := runDispatchEntry(entry, c, command); err != nil {
+			if err := runDispatchEntry(entry, c, cfg, command); err != nil {
 				return err
 			}
 		}
@@ -40,7 +40,7 @@ func runShellCmd(cfg *Config, command Command) func(*cobra.Command, []string) er
 		}
 
 		for _, entry := range command.Post {
-			if err := runDispatchEntry(entry, c, command); err != nil {
+			if err := runDispatchEntry(entry, c, cfg, command); err != nil {
 				return err
 			}
 		}
@@ -62,8 +62,8 @@ func execShell(cfg *Config, command Command, c *cobra.Command, args []string) er
 	return cmd.Run()
 }
 
-func runDispatchEntry(entry string, parent *cobra.Command, parentCmd Command) error {
-	expanded := expandEntryVars(entry, parent, parentCmd)
+func runDispatchEntry(entry string, parent *cobra.Command, cfg *Config, parentCmd Command) error {
+	expanded := expandEntryVars(entry, parent, cfg, parentCmd)
 	tokens, err := shellSplit(expanded)
 	if err != nil {
 		return fmt.Errorf("invalid pre/post entry %q: %w", entry, err)
@@ -78,13 +78,15 @@ func runDispatchEntry(entry string, parent *cobra.Command, parentCmd Command) er
 }
 
 // expandEntryVars resolves $VAR and ${VAR} in a pre/post entry. WAND_FLAG_<NAME>
-// references resolve to the parent command's flag value; everything else falls
-// back to the process environment.
-func expandEntryVars(s string, parent *cobra.Command, parentCmd Command) string {
+// references resolve to the parent command's flag value, or to a global flag;
+// everything else falls back to the process environment.
+func expandEntryVars(s string, parent *cobra.Command, cfg *Config, parentCmd Command) string {
 	return os.Expand(s, func(key string) string {
 		if strings.HasPrefix(key, "WAND_FLAG_") && parent != nil {
 			name := strings.ToLower(strings.TrimPrefix(key, "WAND_FLAG_"))
-			if _, ok := parentCmd.Flags[name]; ok {
+			_, isLocal := parentCmd.Flags[name]
+			_, isGlobal := lo.FromPtrOr(cfg, Config{}).Flags[name]
+			if isLocal || isGlobal {
 				if f := parent.Flags().Lookup(name); f != nil {
 					return f.Value.String()
 				}
@@ -152,6 +154,8 @@ func buildEnv(cfg *Config, command Command, c *cobra.Command) []string {
 	env := os.Environ()
 	env = append(env, mapToEnvSlice(cfg.Env)...)
 	env = append(env, mapToEnvSlice(command.Env)...)
+	// command flags last: a command flag of the same name shadows the global one
+	env = append(env, flagsToEnv(c, cfg.Flags)...)
 	env = append(env, flagsToEnv(c, command.Flags)...)
 	return env
 }

@@ -578,7 +578,7 @@ func TestRunShellCmd_EntryExpandsWandFlag(t *testing.T) {
 	parent.Flags().String("target", "alice", "")
 	parentCmd := Command{Flags: map[string]Flag{"target": {}}}
 
-	if err := runDispatchEntry("greet --who $WAND_FLAG_TARGET", parent, parentCmd); err != nil {
+	if err := runDispatchEntry("greet --who $WAND_FLAG_TARGET", parent, &Config{}, parentCmd); err != nil {
 		t.Fatalf("runDispatchEntry failed: %v", err)
 	}
 	if got, want := calls, [][]string{{"greet", "--who", "alice"}}; !reflect.DeepEqual(got, want) {

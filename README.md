@@ -19,6 +19,8 @@ project tree.
 - **Positional arguments**: pass arguments to commands and reference them with `$1`, `$2`, `$@`.
 - **Custom flags**: define typed flags (string or bool) with aliases, defaults, and descriptions,
   accessible as `$WAND_FLAG_<NAME>` environment variables.
+- **Global flags**: declare flags once in `.config` and use them with any command, before or after
+  the command name.
 - **Environment variables**: define env vars globally in `.config` or per command, with
   command-level overrides.
 - **Working directory**: override the working directory for any command.
@@ -132,7 +134,18 @@ The `--wand-file` flag takes precedence over `WAND_FILE`.
 
 ## 📖 Config Reference
 
-Each top-level key defines a command. The special key `main` becomes the root (no-argument) command.
+Each top-level key defines a command, except `.config`, which holds settings that apply to the whole
+file. The special key `main` becomes the root (no-argument) command.
+
+### `.config` fields
+
+| Field   | Type                | Description                                   |
+| ------- | ------------------- | --------------------------------------------- |
+| `shell` | `string` or `map`   | Shell used to run commands, optionally per OS |
+| `env`   | `map[string]string` | Environment variables for every command       |
+| `flags` | `map[string]Flag`   | Flags available to every command (see below)  |
+
+### Command fields
 
 | Field             | Type                 | Description                                 |
 | ----------------- | -------------------- | ------------------------------------------- |
@@ -208,6 +221,60 @@ wand build -o ./dist -v
 wand build
 # → output=./bin verbose=false
 ```
+
+### Global flags
+
+Flags declared under `.config` are available to every command, and may be passed either before or
+after the command name:
+
+```yaml
+.config:
+  flags:
+    profile:
+      alias: p
+      description: config profile
+      default: dev
+    verbose:
+      alias: V
+      description: enable verbose output
+      type: bool
+
+build:
+  cmd: echo "profile=$WAND_FLAG_PROFILE verbose=$WAND_FLAG_VERBOSE"
+  children:
+    docs:
+      cmd: echo "docs profile=$WAND_FLAG_PROFILE"
+```
+
+```bash
+wand build --profile prod
+wand --profile prod build
+wand -p prod build docs
+# → profile=prod verbose=false
+```
+
+A command flag of the same name shadows the global one for that command:
+
+```yaml
+.config:
+  flags:
+    profile:
+      default: dev
+
+deploy:
+  cmd: echo $WAND_FLAG_PROFILE
+  flags:
+    profile:
+      default: staging
+```
+
+```bash
+wand deploy
+# → staging
+```
+
+Global flag names and aliases must not collide with each other, with a command's own flags, or with
+wand's built-in `--wand-file` and `--help`.
 
 ---
 
@@ -301,7 +368,8 @@ wand build -o ./dist
 ### Forwarding flags
 
 Entries are passed through environment variable expansion (`$VAR`, `${VAR}`) before being
-parsed, so `$WAND_FLAG_<NAME>` references resolve to the current command's flag values:
+parsed, so `$WAND_FLAG_<NAME>` references resolve to the current command's flag values (global flags
+included):
 
 ```yaml
 deploy:

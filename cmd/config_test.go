@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/spf13/viper"
 )
 
@@ -488,5 +489,119 @@ main:
 
 	if commands["main"].Description != "found it" {
 		t.Errorf("expected to find config in parent dir, got description=%q", commands["main"].Description)
+	}
+}
+
+func TestLoadConfig_GlobalFlags(t *testing.T) {
+	setupTestConfig(t, `
+.config:
+  flags:
+    verbose:
+      alias: V
+      description: enable verbose output
+      type: bool
+    profile:
+      description: config profile
+      default: dev
+
+main:
+  cmd: echo hello
+`)
+
+	cfg, _, err := loadConfig("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(cfg.Flags) != 2 {
+		t.Fatalf("global flags = %d, want 2", len(cfg.Flags))
+	}
+	if got := cfg.Flags["verbose"]; got.Alias != "V" || got.Type != "bool" {
+		t.Errorf("verbose flag = %+v, want alias V and type bool", got)
+	}
+	if got := cfg.Flags["profile"].Default; got != "dev" {
+		t.Errorf("profile default = %v, want dev", got)
+	}
+}
+
+func TestValidateConfigFlags_Valid(t *testing.T) {
+	cfg := &Config{Flags: map[string]Flag{"profile": {Alias: "p"}}}
+	commands := map[string]Command{
+		"build": {
+			Flags:    map[string]Flag{"output": {Alias: "o"}},
+			Children: map[string]Command{"docs": {Flags: map[string]Flag{"target": {Alias: "t"}}}},
+		},
+	}
+
+	if err := validateConfigFlags(cfg, commands); err != nil {
+		t.Errorf("validateConfigFlags() = %v, want nil", err)
+	}
+}
+
+func TestValidateConfigFlags_CommandMayOverrideGlobal(t *testing.T) {
+	cfg := &Config{Flags: map[string]Flag{"profile": {Alias: "p", Default: "dev"}}}
+	commands := map[string]Command{
+		"build": {Flags: map[string]Flag{"profile": {Alias: "p", Default: "local"}}},
+	}
+
+	if err := validateConfigFlags(cfg, commands); err != nil {
+		t.Errorf("validateConfigFlags() = %v, want nil (same name may reuse its alias)", err)
+	}
+}
+
+func TestValidateConfigFlags_Errors(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfg      *Config
+		commands map[string]Command
+		want     string
+	}{
+		{
+			name: "reserved global name",
+			cfg:  &Config{Flags: map[string]Flag{"wand-file": {}}},
+			want: `global flags: flag "wand-file" is reserved by wand`,
+		},
+		{
+			name: "reserved alias",
+			cfg:  &Config{Flags: map[string]Flag{"host": {Alias: "h"}}},
+			want: `global flags: alias "h" of flag "host" is reserved by wand`,
+		},
+		{
+			name: "multi-character alias",
+			cfg:  &Config{Flags: map[string]Flag{"verbose": {Alias: "verb"}}},
+			want: `global flags: alias "verb" of flag "verbose" must be a single character`,
+		},
+		{
+			name:     "command alias collides with global",
+			cfg:      &Config{Flags: map[string]Flag{"only": {Alias: "o"}}},
+			commands: map[string]Command{"build": {Flags: map[string]Flag{"output": {Alias: "o"}}}},
+			want:     `command build: flags "only" and "output" share the alias "o"`,
+		},
+		{
+			name:     "duplicate alias within a command",
+			commands: map[string]Command{"build": {Flags: map[string]Flag{"only": {Alias: "o"}, "output": {Alias: "o"}}}},
+			want:     `command build: flags "only" and "output" share the alias "o"`,
+		},
+		{
+			name: "child command alias collides with global",
+			cfg:  &Config{Flags: map[string]Flag{"only": {Alias: "o"}}},
+			commands: map[string]Command{
+				"build": {Children: map[string]Command{"docs": {Flags: map[string]Flag{"output": {Alias: "o"}}}}},
+			},
+			want: `command build docs: flags "only" and "output" share the alias "o"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := lo.FromPtrOr(tt.cfg, Config{})
+			err := validateConfigFlags(&cfg, tt.commands)
+			if err == nil {
+				t.Fatalf("validateConfigFlags() = nil, want %q", tt.want)
+			}
+			if err.Error() != tt.want {
+				t.Errorf("validateConfigFlags() = %q, want %q", err, tt.want)
+			}
+		})
 	}
 }

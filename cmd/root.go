@@ -6,6 +6,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var Version string
@@ -17,6 +18,10 @@ func Execute() error {
 		return err
 	}
 
+	if err := validateConfigFlags(cfg, commands); err != nil {
+		return err
+	}
+
 	rootCmd := &cobra.Command{
 		Use:           "wand",
 		SilenceUsage:  true,
@@ -24,6 +29,7 @@ func Execute() error {
 	}
 
 	rootCmd.PersistentFlags().String("wand-file", "", "path to wand config file (overrides discovery)")
+	registerFlagsOn(rootCmd.PersistentFlags(), cfg.Flags)
 	rootCmd.Version = Version
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 
@@ -94,6 +100,10 @@ func resolveConfigFile() string {
 }
 
 func registerFlags(c *cobra.Command, flags map[string]Flag) {
+	registerFlagsOn(c.Flags(), flags)
+}
+
+func registerFlagsOn(fs *pflag.FlagSet, flags map[string]Flag) {
 	lo.ForEach(
 		lo.Entries(flags),
 		func(e lo.Entry[string, Flag], _ int) {
@@ -101,16 +111,16 @@ func registerFlags(c *cobra.Command, flags map[string]Flag) {
 			if flag.Type == "bool" {
 				def, _ := flag.Default.(bool)
 				if flag.Alias != "" {
-					c.Flags().BoolP(name, flag.Alias, def, flag.Description)
+					fs.BoolP(name, flag.Alias, def, flag.Description)
 				} else {
-					c.Flags().Bool(name, def, flag.Description)
+					fs.Bool(name, def, flag.Description)
 				}
 			} else {
 				def, _ := flag.Default.(string)
 				if flag.Alias != "" {
-					c.Flags().StringP(name, flag.Alias, def, flag.Description)
+					fs.StringP(name, flag.Alias, def, flag.Description)
 				} else {
-					c.Flags().String(name, def, flag.Description)
+					fs.String(name, def, flag.Description)
 				}
 			}
 		},
