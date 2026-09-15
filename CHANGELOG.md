@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/chenasraf/wand/compare/v1.6.0...v1.6.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **cmd:** expand vars in confirm prompts and map hyphenated flags to valid env names ([75382b3](https://github.com/chenasraf/wand/commit/75382b374cb9c2b39bd14cc5306b7ca5ca2d5917))
+
 ## [1.6.0](https://github.com/chenasraf/wand/compare/v1.5.0...v1.6.0) (2026-09-02)
 
 
