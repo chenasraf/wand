@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.2](https://github.com/chenasraf/wand/compare/v1.6.1...v1.6.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** require go 1.26.10 ([4afa939](https://github.com/chenasraf/wand/commit/4afa939ab40ec39e55dece2522fb653361a0143f))
+* **deps:** require go 1.27.3 ([96fb458](https://github.com/chenasraf/wand/commit/96fb4580918bf348d2415f407a9cc8371d022845))
+
 ## [1.6.1](https://github.com/chenasraf/wand/compare/v1.6.0...v1.6.1) (2026-09-15)
 
 
